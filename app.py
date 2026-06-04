@@ -30,10 +30,25 @@ try:
     if os.environ.get('RENDER'):
         # Default Render Persistent Disk mount point
         DATA_DIR = os.environ.get('PERSISTENT_DISK_PATH', '/var/lib/obsidian/data')
-        UPLOAD_FOLDER = os.path.join(DATA_DIR, 'shared_files')
-        DATABASE_URI = os.environ.get('DATABASE_URL') # Render automatically provides this
-        if DATABASE_URI and DATABASE_URI.startswith("postgres://"):
-            DATABASE_URI = DATABASE_URI.replace("postgres://", "postgresql://", 1)
+        try:
+            os.makedirs(DATA_DIR, exist_ok=True)
+            # Test write access to confirm persistent disk is attached and writable
+            test_path = os.path.join(DATA_DIR, '.write_test')
+            with open(test_path, 'w') as f:
+                f.write('test')
+            os.remove(test_path)
+            UPLOAD_FOLDER = os.path.join(DATA_DIR, 'shared_files')
+        except Exception:
+            # Fallback to project root directory (e.g. on free tier without disk attached)
+            DATA_DIR = os.path.dirname(os.path.abspath(__file__))
+            UPLOAD_FOLDER = os.path.join(DATA_DIR, 'shared_files')
+            
+        DATABASE_URI = os.environ.get('DATABASE_URL')
+        if DATABASE_URI:
+            if DATABASE_URI.startswith("postgres://"):
+                DATABASE_URI = DATABASE_URI.replace("postgres://", "postgresql://", 1)
+        else:
+            DATABASE_URI = 'sqlite:///' + os.path.join(DATA_DIR, 'qr_app.db')
     else:
         DATA_DIR = os.path.dirname(os.path.abspath(__file__))
         UPLOAD_FOLDER = os.path.join(DATA_DIR, 'shared_files')
