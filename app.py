@@ -20,80 +20,87 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 # Enterprise Models
 from models import db, User, Share, Transfer, Setting, Cipher, LoginAttempt, RegistrationAttempt
 
-app = Flask(__name__)
+app = None
 
-# --- ENTERPRISE CONFIGURATION ---
-# Storage Path for Render Persistent Disk
-if os.environ.get('RENDER'):
-    # Default Render Persistent Disk mount point
-    DATA_DIR = os.environ.get('PERSISTENT_DISK_PATH', '/var/lib/obsidian/data')
-    UPLOAD_FOLDER = os.path.join(DATA_DIR, 'shared_files')
-    DATABASE_URI = os.environ.get('DATABASE_URL') # Render automatically provides this
-    if DATABASE_URI and DATABASE_URI.startswith("postgres://"):
-        DATABASE_URI = DATABASE_URI.replace("postgres://", "postgresql://", 1)
-else:
-    DATA_DIR = os.path.dirname(os.path.abspath(__file__))
-    UPLOAD_FOLDER = os.path.join(DATA_DIR, 'shared_files')
-    DATABASE_URI = 'sqlite:///' + os.path.join(DATA_DIR, 'qr_app.db')
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = int(5.5 * 1024 * 1024 * 1024)  # 5.5GB
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
-
-
-
-
-# Ensure storage path exists
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-# --- REVERSE PROXY SAFETY ---
-# Trust 1 level of proxy headers (standard for Render / Cloudflare / Nginx).
-# This ensures request.remote_addr resolves to the real client IP,
-# not the proxy's IP, which would cause global login rate-limit lockouts.
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
-
-# Initialize DB & Login
-db.init_app(app)
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login_page'
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-# --- SECURITY CONFIG ---
-app.permanent_session_lifetime = timedelta(hours=24)
-app.config.update(
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-    SESSION_COOKIE_SECURE=True if os.environ.get('RENDER') else False
-)
-
-# Render Global URL
-RENDER_DOMAIN = "obsidian-secure.onrender.com"
-heavy_task_semaphore = threading.Semaphore(3)
-
-# Initial Setup Logic
-def init_enterprise_db():
-    with app.app_context():
-        db.create_all()
-        # Seed default settings
-        defaults = {
-            'alias': 'OBSIDIAN_CORE_14',
-            'auto_revoke': 'true',
-            'ghost_mode': 'false'
-        }
-        for key, val in defaults.items():
-            if not Setting.query.get(key):
-                db.session.add(Setting(key=key, value=val))
-        db.session.commit()
-
-init_enterprise_db()
+try:
+    app = Flask(__name__)
+    
+    # --- ENTERPRISE CONFIGURATION ---
+    # Storage Path for Render Persistent Disk
+    if os.environ.get('RENDER'):
+        # Default Render Persistent Disk mount point
+        DATA_DIR = os.environ.get('PERSISTENT_DISK_PATH', '/var/lib/obsidian/data')
+        UPLOAD_FOLDER = os.path.join(DATA_DIR, 'shared_files')
+        DATABASE_URI = os.environ.get('DATABASE_URL') # Render automatically provides this
+        if DATABASE_URI and DATABASE_URI.startswith("postgres://"):
+            DATABASE_URI = DATABASE_URI.replace("postgres://", "postgresql://", 1)
+    else:
+        DATA_DIR = os.path.dirname(os.path.abspath(__file__))
+        UPLOAD_FOLDER = os.path.join(DATA_DIR, 'shared_files')
+        DATABASE_URI = 'sqlite:///' + os.path.join(DATA_DIR, 'qr_app.db')
+    
+    app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+    app.config['MAX_CONTENT_LENGTH'] = int(5.5 * 1024 * 1024 * 1024)  # 5.5GB
+    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+    
+    # Ensure storage path exists
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    
+    # --- REVERSE PROXY SAFETY ---
+    # Trust 1 level of proxy headers (standard for Render / Cloudflare / Nginx).
+    # This ensures request.remote_addr resolves to the real client IP,
+    # not the proxy's IP, which would cause global login rate-limit lockouts.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+    
+    # Initialize DB & Login
+    db.init_app(app)
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    login_manager.login_view = 'login_page'
+    
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
+    
+    # --- SECURITY CONFIG ---
+    app.permanent_session_lifetime = timedelta(hours=24)
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax',
+        SESSION_COOKIE_SECURE=True if os.environ.get('RENDER') else False
+    )
+    
+    # Render Global URL
+    RENDER_DOMAIN = "obsidian-secure.onrender.com"
+    heavy_task_semaphore = threading.Semaphore(3)
+    
+    # Initial Setup Logic
+    def init_enterprise_db():
+        with app.app_context():
+            db.create_all()
+            # Seed default settings
+            defaults = {
+                'alias': 'OBSIDIAN_CORE_14',
+                'auto_revoke': 'true',
+                'ghost_mode': 'false'
+            }
+            for key, val in defaults.items():
+                if not Setting.query.get(key):
+                    db.session.add(Setting(key=key, value=val))
+            db.session.commit()
+    
+    init_enterprise_db()
+except Exception as e:
+    import sys
+    import traceback
+    print("FATAL ERROR DURING APP INITIALIZATION:", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    sys.stderr.flush()
+    sys.exit(1)
 
 # --- SECURITY HEADERS ---
 @app.after_request
