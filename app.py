@@ -15,7 +15,6 @@ import zipfile
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
-from waitress import serve
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 # Enterprise Models
@@ -809,6 +808,7 @@ cleanup_thread = threading.Thread(target=background_cleanup, daemon=True)
 cleanup_thread.start()
 
 if __name__ == "__main__":
+    from waitress import serve
     port = int(os.environ.get("PORT", 5000))
     print(f" * System Active on Port: {port} (Enterprise Mode)")
     serve(app, host='0.0.0.0', port=port, threads=32)
