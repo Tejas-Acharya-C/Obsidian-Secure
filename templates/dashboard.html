@@ -10,8 +10,8 @@
 
 {% block content %}
     {% if current_page == 'files' or not current_page %}
-    <div class="max-w-6xl w-full stagger-children">
-        <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="max-w-6xl w-full stagger-children flex-1 min-h-0 flex flex-col">
+        <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
             <div>
                 <h1 class="text-lg font-semibold text-ink-primary mb-1">Secure File Transfer</h1>
                 <p class="text-ink-secondary text-xs">Files are encrypted in your browser before leaving your device.</p>
@@ -33,8 +33,9 @@
             </div>
         </div>
         
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch min-h-0">
-            <!-- Left Half: File dropzone & selections -->
+        <div class="flex-1 min-h-0 overflow-y-auto pr-1 pb-8 scrollable-ledger">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch min-h-0">
+                <!-- Left Half: File dropzone & selections -->
             <div>
                 <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -198,7 +199,9 @@
                     <a href="/" class="btn-primary py-1.5 px-4 text-xs max-w-xs mx-auto justify-center">Share a File</a>
                 </div>
             {% endif %}
+            </div>
         </div>
+    </div>
 
     {% elif current_page == 'cipher' %}
     <div class="max-w-2xl w-full stagger-children flex-1 min-h-0 flex flex-col">
@@ -413,7 +416,7 @@
     </div>
 
     {% elif current_page == 'security' %}
-    <div class="max-w-3xl w-full stagger-children flex-1 min-h-0 flex flex-col">
+    <div class="max-w-3xl w-full stagger-children">
         <div class="mb-6">
             <h1 class="text-lg font-semibold text-ink-primary mb-1">How It Works</h1>
             <p class="text-ink-secondary text-xs">A concise view of the encryption flow and what the server stores.</p>
@@ -421,7 +424,7 @@
 
         <div class="surface-card surface-card--secondary space-y-6">
             <div>
-                <h2 class="text-sm font-semibold text-ink-primary mb-3">File Sharing Flow</h2>
+                    <h2 class="text-sm font-semibold text-ink-primary mb-3">File Sharing Flow</h2>
                 <div class="space-y-3">
                     {% set security_steps = [
                         'Select a file.',
