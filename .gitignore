@@ -1,0 +1,49 @@
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+qr_app.db
+db.sqlite3
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment files
+.env
+.env.*
+!.env.example
+.flaskenv
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Runtime uploads
+shared_files/*
+!shared_files/.gitkeep
+uploads/*
+!uploads/.gitkeep
+
+# Generated reports
+audit_reports/
+walkthrough_reports/
+implementation_plans/
+*.md
+!README.md
+!LICENSE

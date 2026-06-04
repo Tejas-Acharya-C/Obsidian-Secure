@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Obsidian Secure | Secure Sharing Workspace{% endblock %}
+
+{% block content %}
+<div class="landing-wrapper space-y-12">
+    <!-- Section 1: Hero Rebuild -->
+    <div class="landing-page-hero py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+            <!-- Left side: Headline, Subheading, Buttons, Trust row -->
+            <div class="lg:col-span-7 space-y-6">
+                <h1 class="hero-headline text-ink-primary font-sans">
+                    Share files securely.
+                </h1>
+                <p class="hero-subheading font-sans max-w-xl">
+                    Create encrypted file shares and secure messages directly in your browser.
+                </p>
+                
+                <div class="space-y-6">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <a href="/register" class="btn-primary w-full sm:w-auto text-center" id="cta-register">Create Share</a>
+                        <a href="/login" class="btn-secondary w-full sm:w-auto text-center" id="cta-login">Sign In</a>
+                    </div>
+                    
+                    <!-- Trust Row -->
+                    <div class="trust-row flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-ink-secondary/80 select-none pt-4 border-t border-archival-border/20">
+                        <span class="flex items-center gap-2.5"><span class="material-symbols-outlined text-[16px] text-sage">visibility_off</span> Private encryption</span>
+                        <span class="flex items-center gap-2.5"><span class="material-symbols-outlined text-[16px] text-sage">schedule</span> Expiry enforcement</span>
+                        <span class="flex items-center gap-2.5"><span class="material-symbols-outlined text-[16px] text-sage">chat_bubble</span> Self-destructing messages</span>
+                        <span class="flex items-center gap-2.5"><span class="material-symbols-outlined text-[16px] text-sage">verified_user</span> No recipient account required</span>
+                    </div>
+
+                    <!-- Account Contradiction Statement -->
+                    <p class="text-sm text-ink-muted leading-relaxed font-sans max-w-lg">
+                        Recipients can access files instantly. Sender accounts are only used to manage active shares and messages.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Right side: Demo Card -->
+            <div class="lg:col-span-5 w-full">
+                <div class="surface-card surface-card--primary space-y-4">
+                    <div class="flex items-center gap-2 border-b border-archival-border pb-3">
+                        <span class="material-symbols-outlined text-sage text-[18px]" aria-hidden="true">check_circle</span>
+                        <h4 class="text-sm font-semibold text-ink-primary font-sans">Share details</h4>
+                    </div>
+                    
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between border-b border-archival-border/40 pb-2">
+                            <span class="text-ink-secondary">Selected file</span>
+                            <span class="text-ink-primary font-medium font-mono">document_draft.pdf (1.2 MB)</span>
+                        </div>
+                        <div class="flex justify-between border-b border-archival-border/40 pb-2">
+                            <span class="text-ink-secondary">Encryption status</span>
+                            <span class="text-sage font-mono font-medium">Encrypted in browser</span>
+                        </div>
+                        <div class="flex justify-between pb-2">
+                            <span class="text-ink-secondary">Expiry policy</span>
+                            <span class="text-ink-primary">1 hour (Auto-revoke active)</span>
+                        </div>
+                    </div>
+
+                    <div class="share-link-bar pt-2">
+                        <input type="text" readonly value="https://obsidian.secure/download/document_draft_enc#key=8f9a2d4c0b8f7e6a..." 
+                            class="share-link-input text-sm font-mono" aria-label="Secure share link example">
+                        <button type="button" class="btn-primary py-2 px-3 text-sm shrink-0" aria-label="Copy link representation">
+                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">content_copy</span>
+                        </button>
+                    </div>
+
+                    <!-- QR Code Workflow Preview -->
+                    <div class="flex gap-3 items-center pt-2 border-t border-archival-border/50">
+                        <div class="w-14 h-14 bg-archival-soft border border-archival-border rounded flex flex-col items-center justify-center font-mono text-[9px] text-ink-muted shrink-0 select-none" aria-hidden="true">
+                            <span class="material-symbols-outlined text-[20px] text-sage/70 mb-0.5">qr_code_2</span>
+                            <span>QR ACTIVE</span>
+                        </div>
+                        <div class="text-sm text-ink-secondary leading-relaxed">
+                            <p>An access QR code is automatically generated for direct mobile scans and physical handoffs.</p>
+                        </div>
+                    </div>
+
+                    <!-- Demo Card Footer Note -->
+                    <div class="pt-2 border-t border-archival-border/30 text-sm text-ink-muted text-center italic">
+                        Only the link holder can decrypt the file.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Features Rebuild -->
+    <section aria-labelledby="capabilities-title">
+        <h2 id="capabilities-title" class="section-title-large text-ink-primary mb-6 font-sans">
+            Key Capabilities
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Card 1: Files -->
+            <div class="surface-card surface-card--secondary flex flex-col p-6">
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2 border-b border-archival-border/40 pb-3">
+                        <span class="material-symbols-outlined text-[20px] text-sage">folder</span>
+                        <h3 class="card-title-large text-ink-primary font-sans">File Sharing</h3>
+                    </div>
+                    <ul class="space-y-4 text-sm leading-relaxed">
+                        <li>
+                            <strong class="text-ink-primary block font-medium">Send files privately</strong>
+                            <span class="text-ink-secondary/80">Share documents securely without storing plain files on the server.</span>
+                        </li>
+                        <li>
+                            <strong class="text-ink-primary block font-medium">Set links to expire automatically</strong>
+                            <span class="text-ink-secondary/80">Vanish access links automatically after a duration of your choice.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Card 2: Messages -->
+            <div class="surface-card surface-card--secondary flex flex-col p-6">
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2 border-b border-archival-border/40 pb-3">
+                        <span class="material-symbols-outlined text-[20px] text-sage">chat_bubble</span>
+                        <h3 class="card-title-large text-ink-primary font-sans">Secure Messages</h3>
+                    </div>
+                    <ul class="space-y-4 text-sm leading-relaxed">
+                        <li>
+                            <strong class="text-ink-primary block font-medium">Write secure text notes</strong>
+                            <span class="text-ink-secondary/80">Share passwords, API tokens, or other credentials safely.</span>
+                        </li>
+                        <li>
+                            <strong class="text-ink-primary block font-medium">Burn after reading</strong>
+                            <span class="text-ink-secondary/80">Destroy links permanently the moment the recipient reads them.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Card 3: Privacy & Access -->
+            <div class="surface-card surface-card--secondary flex flex-col p-6">
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2 border-b border-archival-border/40 pb-3">
+                        <span class="material-symbols-outlined text-[20px] text-sage">admin_panel_settings</span>
+                        <h3 class="card-title-large text-ink-primary font-sans">Privacy &amp; Access</h3>
+                    </div>
+                    <ul class="space-y-4 text-sm leading-relaxed">
+                        <li>
+                            <strong class="text-ink-primary block font-medium">Hidden file names</strong>
+                            <span class="text-ink-secondary/80">Hide original file names from recipients so they cannot see what was shared.</span>
+                        </li>
+                        <li>
+                            <strong class="text-ink-primary block font-medium">Custom sender name</strong>
+                            <span class="text-ink-secondary/80">Choose the name recipients see when they open your shared file.</span>
+                        </li>
+                        <li>
+                            <strong class="text-ink-primary block font-medium">QR code access</strong>
+                            <span class="text-ink-secondary/80">Scan a secure code to download shares instantly on mobile.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 4: Trust Section Rebuild (ONE compact card) -->
+    <section aria-labelledby="trust-title">
+        <h2 id="trust-title" class="section-title-large text-ink-primary mb-6 font-sans">
+            Security Design
+        </h2>
+        <div class="max-w-2xl">
+            <div class="surface-card surface-card--secondary p-6 space-y-4">
+                <h3 class="card-title-large text-ink-primary font-sans border-b border-archival-border/40 pb-2">How Obsidian Secure Works</h3>
+                <ul class="space-y-3 text-sm leading-relaxed text-ink-secondary">
+                    <li class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sage text-[18px]">check_circle</span>
+                        <span>Files are encrypted before upload.</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sage text-[18px]">check_circle</span>
+                        <span>Decryption keys stay outside the server.</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sage text-[18px]">check_circle</span>
+                        <span>Links can expire automatically.</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sage text-[18px]">check_circle</span>
+                        <span>Recipients do not need accounts.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-archival-border/40 py-6 text-center text-xs text-ink-secondary">
+        <p>&copy; 2026 Obsidian Secure · <a href="https://github.com/Tejas-Acharya-C/Obsidian-Secure" class="text-ink-primary hover:text-sage font-mono">GitHub</a> · Private file sharing with client-side encryption.</p>
+    </footer>
+</div>
+{% endblock %}

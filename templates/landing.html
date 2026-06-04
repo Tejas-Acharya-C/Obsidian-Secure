@@ -1,0 +1,105 @@
+{% set body_class = "receiver-page" %}
+{% extends "base.html" %}
+
+{% block title %}Download Secure File | Obsidian Secure{% endblock %}
+
+{% block content %}
+<div class="max-w-md w-full mt-12 animate-fade-in">
+    <div class="surface-card surface-card--primary">
+        <div class="mb-8">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-lg bg-sage/10 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-xl text-sage" aria-hidden="true">lock</span>
+                </div>
+                <div>
+                    <h1 class="text-lg font-medium text-ink-primary">Secure File</h1>
+                    <p class="text-xs text-ink-secondary">End-to-end encrypted transfer</p>
+                </div>
+            </div>
+
+            {% if not expired %}
+            <h3 class="text-base font-mono text-ink-primary mb-2 break-all">{{ display_name if display_name else filename }}</h3>
+
+            {% if alias %}
+            <p class="text-sm text-ink-secondary">Shared by <span class="text-ink-primary font-medium">{{ alias }}</span></p>
+            {% endif %}
+
+            {% if file_size %}
+            <p class="text-xs text-ink-secondary/80 mt-2">Size: <span class="text-ink-primary font-mono font-medium">{{ (file_size / (1024 * 1024))|round(1) if file_size >= 1048576 else (file_size / 1024)|round(1) }}{{ ' MB' if file_size >= 1048576 else ' KB' }}</span></p>
+            {% endif %}
+            {% endif %}
+        </div>
+
+        {% if expired %}
+        <div class="py-8 text-center" role="status">
+            <span class="material-symbols-outlined text-4xl text-destructive/40 mb-4 block" aria-hidden="true">schedule</span>
+            <h3 class="text-lg font-medium text-ink-primary mb-2">File No Longer Available</h3>
+            <p class="text-sm text-ink-secondary mb-1">This file has expired or been removed by the sender.</p>
+            <p class="text-xs text-ink-secondary/60 mb-4">Secure files are automatically cleaned up after their expiry period.</p>
+            <p class="text-xs text-ink-secondary/80 border-t border-archival-border/20 pt-4">What you can do: Request the sender to generate and share a new link.</p>
+        </div>
+        {% else %}
+
+        {% set ext = filename.split('.')[-1].lower() if '.' in filename else '' %}
+        {% if ext in ['exe', 'msi', 'bat', 'cmd', 'sh', 'py', 'js', 'vbs', 'ps1', 'scr'] %}
+        <div class="warning-alert mb-6" role="alert">
+            <p>
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">warning</span> 
+                <strong>Executable File</strong>
+            </p>
+            <p class="text-xs text-ink-secondary mt-1 block">This file may contain code that runs on your computer. Only download if you trust the sender.</p>
+        </div>
+        {% endif %}
+
+        {% if file_size and file_size > 104857600 %}
+        <div id="mobile-memory-warning" class="warning-alert mb-6 hidden" role="alert">
+            <p>
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">memory</span> 
+                <strong>Large File Warning</strong>
+            </p>
+            <p class="text-xs text-ink-secondary mt-1 block">This file is over 100MB. Downloading on mobile browsers or Safari may cause the page to crash due to memory limits. A desktop Chromium browser is recommended.</p>
+        </div>
+        {% endif %}
+
+        <div id="download-error" class="error-alert mb-6 hidden" role="alert">
+            <p>
+                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">error</span>
+                <span id="download-error-text">Unable to decrypt this file.</span>
+            </p>
+        </div>
+
+        <button type="button" id="download-btn" data-filename="{{ filename }}" data-display-name="{{ display_name if display_name else filename }}" class="btn-primary w-full py-3 mb-6">
+            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">download</span>
+            Download &amp; Decrypt
+        </button>
+
+        <div class="pt-5 border-t border-archival-border/30 space-y-2.5">
+            <p class="flex items-start gap-2 text-xs text-ink-secondary">
+                <span class="material-symbols-outlined text-[14px] mt-0.5 text-sage shrink-0" aria-hidden="true">verified_user</span>
+                Decryption happens entirely in your browser. The server never sees the unencrypted file.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/crypto.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const warning = document.getElementById("mobile-memory-warning");
+        if (warning) {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isChromium = !!window.chrome;
+            const hasFileSystemAccess = 'showSaveFilePicker' in window;
+            
+            // Show warning if on mobile or if File System Access API is missing (e.g. Firefox/Safari)
+            if (isMobile || !hasFileSystemAccess || !isChromium) {
+                warning.classList.remove("hidden");
+            }
+        }
+    });
+</script>
+{{ super() }}
+{% endblock %}

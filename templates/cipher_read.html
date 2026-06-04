@@ -1,0 +1,90 @@
+{% set body_class = "receiver-page" %}
+{% extends "base.html" %}
+
+{% block title %}Secure Message | Obsidian Secure{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl w-full mt-12 mx-auto animate-fade-in">
+    <div class="surface-card surface-card--primary">
+        <div class="mb-8">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-lg bg-sage/10 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-xl text-sage" aria-hidden="true">mail_lock</span>
+                </div>
+                <div>
+                    <h1 class="text-lg font-medium text-ink-primary">Secure Message</h1>
+                    <p class="text-xs text-ink-secondary">End-to-end encrypted communication</p>
+                </div>
+            </div>
+        </div>
+
+        {% if expired %}
+        <div class="py-8 text-center" role="status">
+            <span class="material-symbols-outlined text-4xl text-destructive/40 mb-4 block" aria-hidden="true">delete_forever</span>
+            <h3 class="text-lg font-medium text-ink-primary mb-2">Message Unavailable</h3>
+            <p class="text-sm text-ink-secondary mb-1">This message has already been read or has expired.</p>
+            <p class="text-xs text-ink-secondary/60 mb-4">Burn-after-read messages are permanently deleted after viewing.</p>
+            <p class="text-xs text-ink-secondary/80 border-t border-archival-border/20 pt-4">What you can do: Request the sender to create and share a new secure message.</p>
+        </div>
+        {% else %}
+        
+        <!-- Encrypted payload for browser-side decryption (base64, never plaintext) -->
+        <input type="hidden" id="cipher-content" value="{{ content }}">
+
+        <div id="decrypt-prompt" class="py-6">
+            {% if alias %}
+            <p class="text-sm text-ink-primary mb-4 font-sans">
+                Message shared by <span class="font-semibold text-sage">{{ alias }}</span>
+            </p>
+            {% endif %}
+            <p class="text-sm text-ink-secondary mb-6">This message is encrypted. Click below to decrypt it in your browser.</p>
+            
+            <div id="decrypt-error" class="error-alert mb-5 hidden" role="alert">
+                <p>
+                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">error</span>
+                    <span id="decrypt-error-text">Unable to decrypt this message.</span>
+                </p>
+            </div>
+
+            <button type="button" class="btn-primary mb-5" id="decrypt-btn">
+                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">lock_open</span>
+                Decrypt Message
+            </button>
+            <p class="flex items-start gap-2 text-xs text-ink-secondary">
+                <span class="material-symbols-outlined text-[14px] mt-0.5 text-sage shrink-0" aria-hidden="true">verified_user</span>
+                Decryption happens entirely in your browser. The server never sees the plaintext.
+            </p>
+        </div>
+
+        <div id="decrypted-content" class="hidden" role="status">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="material-symbols-outlined text-sage text-[18px]" aria-hidden="true">check_circle</span>
+                <h4 class="text-sm font-medium text-ink-primary">Decrypted message</h4>
+            </div>
+            <div class="bg-archival-soft/40 rounded-xl p-6 mb-6 no-copy-zone select-none" id="plaintext-container">
+                <p id="plaintext-message" class="text-ink-primary font-mono whitespace-pre-wrap break-words leading-relaxed select-none"></p>
+            </div>
+            
+            <div class="flex items-center gap-3 text-xs text-ink-secondary pt-4 border-t border-archival-border/30">
+                <span class="flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">local_fire_department</span>
+                    Burn-after-read enabled
+                </span>
+                {% if alias %}
+                <span class="w-1 h-1 rounded-full bg-ink-secondary/30" aria-hidden="true"></span>
+                <span>Shared by {{ alias }}</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if not expired %}
+<script src="/static/js/crypto.js"></script>
+{{ super() }}
+{% endif %}
+{% endblock %}
