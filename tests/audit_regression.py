@@ -303,8 +303,8 @@ def run_audit():
             check("Direct download: Content-Disposition present",
                   'attachment' in resp.headers.get('Content-Disposition', '').lower())
             
-            # Activity page shows share
-            resp = c8.get('/shared')
+            # Activity page shows share (now consolidated into dashboard)
+            resp = c8.get('/dashboard')
             html = resp.data.decode()
             check("Activity: shows uploaded file", 'test_document.txt' in html)
             check("Activity: shows copy link button", 'Copy link' in html)
