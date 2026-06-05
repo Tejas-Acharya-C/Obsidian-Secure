@@ -846,7 +846,7 @@ const ObsidianSecure = (() => {
                 anchor.href = url;
                 anchor.download = button.dataset.displayName || filename;
                 anchor.click();
-                URL.revokeObjectURL(url);
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
             }
 
             button.innerHTML = '<span class="material-symbols-outlined text-[20px]" aria-hidden="true">check_circle</span> Download complete';
