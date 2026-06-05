@@ -62,10 +62,10 @@
                     <button id="mobile-nav-toggle" class="btn-icon mobile-nav-toggle" aria-label="Open navigation menu" aria-controls="mobile-nav-panel" aria-expanded="false">
                         <span class="material-symbols-outlined text-[20px]" aria-hidden="true">menu</span>
                     </button>
-                    <a href="/settings" class="btn-icon" title="Settings" aria-label="Settings">
+                    <a href="/settings" class="btn-icon hidden md:flex" title="Settings" aria-label="Settings">
                         <span class="material-symbols-outlined text-[20px]" aria-hidden="true">settings</span>
                     </a>
-                    <form action="/logout" method="POST" class="inline m-0 p-0">
+                    <form action="/logout" method="POST" class="hidden md:block m-0 p-0">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn-icon" title="Sign out" aria-label="Sign out">
                             <span class="material-symbols-outlined text-[20px]" aria-hidden="true">logout</span>
@@ -132,6 +132,19 @@
 
     <!-- Global Toast System -->
     <div id="toast-container" class="fixed top-6 right-6 z-[200] flex flex-col gap-3 max-w-sm w-full pointer-events-none" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Global Confirmation Dialog -->
+    <dialog id="confirm-dialog" class="surface-card surface-card--primary p-6 rounded-xl border border-archival-border shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm max-w-sm w-full mx-auto" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-desc">
+        <h3 id="confirm-dialog-title" class="text-lg font-semibold text-ink-primary mb-2 font-sans">Are you sure?</h3>
+        <p id="confirm-dialog-desc" class="text-sm text-ink-secondary mb-6 leading-relaxed">
+            This action cannot be undone.<br>
+            Recipients will no longer be able to access this item.
+        </p>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 mt-4 pt-4 border-t border-archival-border/40">
+            <button type="button" id="confirm-dialog-cancel" class="btn-secondary py-2 px-4 text-sm font-medium order-2 sm:order-1">Cancel</button>
+            <button type="button" id="confirm-dialog-confirm" class="btn-destructive py-2 px-4 text-sm font-medium order-1 sm:order-2">Confirm</button>
+        </div>
+    </dialog>
 
     {% block scripts %}
     <script src="/static/js/qrcode.min.js"></script>

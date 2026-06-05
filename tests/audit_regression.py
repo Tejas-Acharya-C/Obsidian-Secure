@@ -396,8 +396,16 @@ def run_audit():
             
             # Burn-after-read check
             cipher_refreshed = Cipher.query.get(cipher.id)
-            check("Burn: cipher marked as read after first access", 
-                  cipher_refreshed.is_read == True)
+            check("Burn: cipher NOT marked as read after first access", 
+                  cipher_refreshed.is_read == False)
+            
+            # Simulate client calling confirm API
+            resp_confirm = pub_client.post(f'/api/cipher/confirm_read/{cipher.public_id}')
+            check("Burn: confirm API returns 200", resp_confirm.status_code == 200)
+
+            cipher_refreshed_after_confirm = Cipher.query.get(cipher.id)
+            check("Burn: cipher marked as read after confirm", 
+                  cipher_refreshed_after_confirm.is_read == True)
             
             # Second access should show expired
             resp = pub_client.get(f'/decrypt/{cipher.public_id}')

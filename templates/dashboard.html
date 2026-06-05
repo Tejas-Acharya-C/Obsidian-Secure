@@ -36,7 +36,7 @@
         <div class="flex-1 min-h-0 overflow-y-auto pr-1 pb-8 scrollable-ledger">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch min-h-0">
                 <!-- Left Half: File dropzone & selections -->
-            <div>
+            <div class="order-2 lg:order-1">
                 <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="surface-card surface-card--primary">
@@ -102,8 +102,8 @@
                 </form>
             </div>
 
-            <div id="qr-panel-container">
-                <div id="success-panel" class="surface-card surface-card--primary animate-fade-in {{ 'hidden' if not public_url }}" role="status">
+            <div id="qr-panel-container" class="order-1 lg:order-2">
+                <div id="success-panel" class="surface-card surface-card--primary animate-fade-in hidden" role="status">
                     <div class="flex items-center gap-2 mb-4">
                         <span class="material-symbols-outlined text-sage text-[18px]" aria-hidden="true">check_circle</span>
                         <h4 class="text-sm font-semibold text-ink-primary font-sans">Share Created Successfully</h4>
@@ -133,7 +133,7 @@
                     </div>
                 </div>
 
-                <div id="awaiting-panel" class="surface-card surface-card--primary flex flex-col items-center justify-center text-center p-8 min-h-[300px] border border-dashed border-archival-border placeholder-payload-card select-none {{ 'hidden' if public_url }}">
+                <div id="awaiting-panel" class="surface-card surface-card--primary flex flex-col items-center justify-center text-center p-8 min-h-[300px] border border-dashed border-archival-border placeholder-payload-card select-none">
                     <div class="w-16 h-16 rounded-full bg-archival-soft border border-archival-border flex items-center justify-center mb-5 text-sage placeholder-lock-pulse">
                         <span class="material-symbols-outlined text-[32px]" aria-hidden="true">lock</span>
                     </div>
@@ -161,9 +161,9 @@
                                     <span class="w-1.5 h-1.5 bg-sage rounded-full"></span>
                                     <span>Active</span>
                                 </span>
-                                <span class="w-1 h-1 rounded-full bg-archival-border" aria-hidden="true"></span>
-                                <span class="text-ink-secondary">Uploaded {{ share.upload_time.strftime('%Y-%m-%d %H:%M') if share.upload_time else 'recently' }} UTC</span>
-                                <span class="w-1 h-1 rounded-full bg-archival-border" aria-hidden="true"></span>
+                                <span class="w-1 h-1 rounded-full bg-archival-border hidden sm:block" aria-hidden="true"></span>
+                                <span class="text-ink-secondary hidden sm:inline">Uploaded {{ share.upload_time.strftime('%Y-%m-%d %H:%M') if share.upload_time else 'recently' }} UTC</span>
+                                <span class="w-1 h-1 rounded-full bg-archival-border hidden sm:block" aria-hidden="true"></span>
                                 <span class="text-ink-secondary expiry-countdown" data-expiry-time="{{ share.expiry_time.isoformat() }}Z">
                                     Expires {{ share.expiry_time.strftime('%Y-%m-%d %H:%M') if share.expiry_time else 'soon' }} UTC
                                 </span>
@@ -176,13 +176,13 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
-                            <button type="button" data-copy-url="{{ share.public_url }}" class="btn-secondary py-1 px-3 text-[11px] min-h-[32px]" aria-label="Copy link for {{ share.original_name }}">
+                            <button type="button" data-copy-url="{{ share.public_url }}" class="btn-secondary py-1 px-3 text-[11px] min-h-[44px] sm:min-h-[32px]" aria-label="Copy link for {{ share.original_name }}">
                                 Copy link
                             </button>
-                            <form action="/revoke" method="POST" class="inline">
+                            <form action="/revoke" method="POST" class="inline confirm-destructive">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="public_url" value="{{ share.public_url }}">
-                                <button type="submit" class="btn-destructive py-1 px-3 text-[11px] min-h-[32px] hover:bg-destructive/10" aria-label="Revoke access to {{ share.original_name }}">
+                                <button type="submit" class="btn-destructive py-1 px-3 text-[11px] min-h-[44px] sm:min-h-[32px] hover:bg-destructive/10" aria-label="Revoke access to {{ share.original_name }}">
                                     Revoke
                                 </button>
                             </form>
@@ -248,27 +248,37 @@
             </form>
 
             <div id="cipher-success-panel" class="surface-card surface-card--primary mt-6 animate-fade-in {{ 'hidden' if not public_url }}" role="status">
-                <div class="flex items-center gap-2 mb-4">
-                    <span class="material-symbols-outlined text-sage text-[18px]" aria-hidden="true">check_circle</span>
-                    <h4 class="text-xs font-semibold text-ink-primary font-sans">Message encrypted successfully</h4>
+                <div id="cipher-success-keyless" class="{{ 'hidden' if not public_url }}">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="material-symbols-outlined text-sage text-[18px]" aria-hidden="true">info</span>
+                        <h4 class="text-xs font-semibold text-ink-primary font-sans">Message created previously</h4>
+                    </div>
+                    <p class="text-xs text-ink-secondary mb-4">For security reasons the decryption key is no longer available in this browser session. Create a new message if you need a new link.</p>
                 </div>
 
-                <div class="share-link-bar mb-4">
-                    <input type="text" readonly value="{{ public_url if public_url else '' }}" id="cipher-share-url" data-share-type="cipher"
-                        class="share-link-input text-xs" aria-label="Encrypted message link">
-                    <button type="button" id="cipher-copy-btn" data-copy-share="cipher-share-url" class="btn-primary py-2 px-4 text-xs shrink-0" aria-label="Copy message link to clipboard">
-                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">content_copy</span>
-                        <span id="cipher-copy-label" data-copy-label>Copy link</span>
-                    </button>
-                </div>
-
-                <div class="flex flex-col sm:flex-row gap-5">
-                    <div id="cipher-qr-container" class="w-36 h-36 shrink-0 hidden flex items-center justify-center bg-white p-2 rounded"></div>
-                    <div class="text-[11px] text-ink-secondary space-y-2">
-                        <p class="flex items-start gap-2">
-                            <span class="material-symbols-outlined text-[14px] mt-0.5 text-sage shrink-0" aria-hidden="true">lock</span>
-                            This link contains the decryption key. Share it only with intended recipients. The server does not store the message decryption key.
-                        </p>
+                <div id="cipher-success-with-key" class="hidden">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="material-symbols-outlined text-sage text-[18px]" aria-hidden="true">check_circle</span>
+                        <h4 class="text-xs font-semibold text-ink-primary font-sans">Message encrypted successfully</h4>
+                    </div>
+    
+                    <div class="share-link-bar mb-4">
+                        <input type="text" readonly value="{{ public_url if public_url else '' }}" id="cipher-share-url" data-share-type="cipher"
+                            class="share-link-input text-xs" aria-label="Encrypted message link">
+                        <button type="button" id="cipher-copy-btn" data-copy-share="cipher-share-url" class="btn-primary py-2 px-4 text-xs shrink-0" aria-label="Copy message link to clipboard">
+                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">content_copy</span>
+                            <span id="cipher-copy-label" data-copy-label>Copy link</span>
+                        </button>
+                    </div>
+    
+                    <div class="flex flex-col sm:flex-row gap-5">
+                        <div id="cipher-qr-container" class="w-36 h-36 shrink-0 hidden flex items-center justify-center bg-white p-2 rounded"></div>
+                        <div class="text-[11px] text-ink-secondary space-y-2">
+                            <p class="flex items-start gap-2">
+                                <span class="material-symbols-outlined text-[14px] mt-0.5 text-sage shrink-0" aria-hidden="true">lock</span>
+                                This link contains the decryption key. Share it only with intended recipients. The server does not store the message decryption key.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -294,7 +304,7 @@
                                 </span>
                             </div>
                         </div>
-                        <button type="button" data-copy-url="{{ request.url_root }}decrypt/{{ c.public_id }}" class="btn-secondary py-1 px-3 text-[11px] min-h-[32px] shrink-0" aria-label="Copy link for message {{ c.public_id }}">
+                        <button type="button" data-copy-url="{{ request.url_root }}decrypt/{{ c.public_id }}" class="btn-secondary py-1 px-3 text-[11px] min-h-[44px] sm:min-h-[32px] shrink-0" aria-label="Copy link for message {{ c.public_id }}">
                             Copy link
                         </button>
                     </div>
@@ -333,16 +343,16 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div>
                             <label for="current_password" class="form-label text-xs">Current password</label>
-                            <input type="password" id="current_password" name="current_password" class="form-input text-sm" minlength="8" required>
+                            <input type="password" id="current_password" name="current_password" class="form-input text-sm" minlength="8" required autocomplete="current-password">
                         </div>
                         <div>
                             <label for="new_password" class="form-label text-xs">New password</label>
-                            <input type="password" id="new_password" name="new_password" class="form-input text-sm" minlength="8" required>
+                            <input type="password" id="new_password" name="new_password" class="form-input text-sm" minlength="8" required autocomplete="new-password">
                             <p class="text-[11px] text-ink-secondary mt-2">Use at least 8 characters.</p>
                         </div>
                         <div>
                             <label for="confirm_password" class="form-label text-xs">Confirm new password</label>
-                            <input type="password" id="confirm_password" name="confirm_password" class="form-input text-sm" minlength="8" required>
+                            <input type="password" id="confirm_password" name="confirm_password" class="form-input text-sm" minlength="8" required autocomplete="new-password">
                         </div>
                         <button type="submit" class="btn-primary py-2 px-4 text-xs sm:w-auto">Update Password</button>
                     </form>

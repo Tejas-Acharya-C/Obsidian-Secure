@@ -591,11 +591,16 @@ def decrypt_cipher(public_id):
     
     content = row.content
     alias = get_setting('alias', 'OBSIDIAN_NODE')
-    if row.burn_on_read:
-        row.is_read = True
-        db.session.commit()
     
     return render_template('cipher_read.html', content=content, expired=False, alias=alias)
+
+@app.route('/api/cipher/confirm_read/<public_id>', methods=['POST'])
+def confirm_cipher_read(public_id):
+    row = Cipher.query.filter_by(public_id=public_id, is_read=False).first()
+    if row and row.burn_on_read:
+        row.is_read = True
+        db.session.commit()
+    return jsonify({"status": "success"})
 
 @app.route('/settings')
 @login_required
@@ -730,7 +735,7 @@ def landing_page(filename):
     file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
         
     display_name = f"ENCRYPTED_PAYLOAD.bin" if is_ghost else share.original_name
-    return render_template('landing.html', filename=filename, display_name=display_name, alias=alias, expired=False, file_size=file_size)
+    return render_template('landing.html', filename=filename, display_name=display_name, alias=alias, expired=False, file_size=file_size, expiry_time=share.expiry_time)
 
 @app.route('/upload/stream', methods=['POST'])
 @login_required
@@ -797,9 +802,6 @@ def upload_file_stream():
         )
         db.session.add(new_share)
         db.session.commit()
-        
-        session['success_public_url'] = share_url
-        session['success_message'] = f"File shared: {original_name}"
         
         return jsonify({
             'status': 'success',

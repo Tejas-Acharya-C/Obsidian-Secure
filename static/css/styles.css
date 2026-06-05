@@ -15,9 +15,9 @@
   
   --ink-primary: #E2E8ED;        /* Cool Titanium Silver */
   --ink-secondary: #9DABB6;      /* Cool Stone / Teal-grey body text */
-  --ink-muted: #6E7B85;          /* Slate Muted detail */
+  --ink-muted: #8B9BA7;          /* Slate Muted detail */
   
-  --sage: #5B8A7A;               /* Teal Accent — matches image glow lines */
+  --sage: #73A593;               /* Teal Accent — matches image glow lines */
   --sage-hover: #6FA08E;         /* Brightened teal hover state */
   
   --destructive: #94534E;        /* Muted Oxide Red / Threat Warning */
@@ -32,7 +32,7 @@
   --archival-border-rgb: 30, 35, 40;
   --ink-primary-rgb: 226, 232, 237;
   --ink-secondary-rgb: 157, 171, 182;
-  --sage-rgb: 91, 138, 122;
+  --sage-rgb: 115, 165, 147;
   --destructive-rgb: 148, 83, 78;
 }
 
@@ -1161,4 +1161,14 @@ main, .landing-wrapper > *, .landing-wrapper > .landing-page-hero, .surface-card
   animation: successGlow 1.2s ease-out 1;
   border-color: rgba(91, 138, 122, 0.35) !important;
 }
+
+/* --- QR Code Image & Canvas Scale Optimization --- */
+#qr-container img, #qr-container canvas, 
+#cipher-qr-container img, #cipher-qr-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 128px;
+  max-height: 128px;
+}
+
 

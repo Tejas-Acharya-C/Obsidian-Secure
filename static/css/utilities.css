@@ -374,13 +374,15 @@
   .sm\:self-center { align-self: center; }
   .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sm\:justify-between { justify-content: space-between; }
+  .sm\:block { display: block !important; }
+  .sm\:inline { display: inline !important; }
 }
 
 /* --- Responsive: md (768px+) --- */
 @media (min-width: 768px) {
-  .md\:flex { display: flex; }
-  .md\:hidden { display: none; }
-  .md\:block { display: block; }
+  .md\:flex { display: flex !important; }
+  .md\:hidden { display: none !important; }
+  .md\:block { display: block !important; }
   .md\:flex-row { flex-direction: row; }
   .md\:items-center { align-items: center; }
   .md\:p-8 { padding: 2rem; }

@@ -68,7 +68,7 @@ async function decryptFile(encryptedBlob, key) {
   const iv = new Uint8Array(buffer, 0, 12);
   
   // Extract ciphertext+authTag (remaining bytes)
-  const ciphertext = new Uint8Array(buffer, 12);
+  const ciphertext = new Uint8Array(new Uint8Array(buffer, 12));
   
   // Decrypt
   const decryptedData = await crypto.subtle.decrypt(
@@ -114,7 +114,7 @@ async function decryptText(ciphertextBase64, key) {
   const iv = new Uint8Array(buffer, 0, 12);
   
   // Extract ciphertext+authTag (remaining bytes)
-  const ciphertext = new Uint8Array(buffer, 12);
+  const ciphertext = new Uint8Array(new Uint8Array(buffer, 12));
   
   // Decrypt
   const decryptedData = await crypto.subtle.decrypt(
@@ -334,7 +334,7 @@ async function decryptFileChunked(buffer, key) {
     }
 
     // Extract ciphertext view (no copy — shares underlying buffer)
-    var ciphertext = data.subarray(offset, offset + chunkLen);
+    var ciphertext = new Uint8Array(data.subarray(offset, offset + chunkLen));
     offset += chunkLen;
 
     // Determine if this is the final chunk (all data consumed)
@@ -381,7 +381,7 @@ async function decryptFileAuto(encryptedBlob, key) {
 
   // Legacy v1 format: [12-byte IV][ciphertext + GCM auth tag]
   var iv = new Uint8Array(buffer, 0, 12);
-  var ciphertext = new Uint8Array(buffer, 12);
+  var ciphertext = new Uint8Array(new Uint8Array(buffer, 12));
   var decryptedData = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: iv },
     key,
@@ -487,7 +487,7 @@ async function decryptStreamToStream(readableStream, writableStream, key, onProg
           const chunkLen = ((buffer[0] << 24) | (buffer[1] << 16) | (buffer[2] << 8) | buffer[3]) >>> 0;
           
           if (buffer.length >= 4 + chunkLen) {
-            const ciphertext = buffer.subarray(4, 4 + chunkLen);
+            const ciphertext = new Uint8Array(buffer.subarray(4, 4 + chunkLen));
             
             // If totalChunks is known from header, use it to determine isFinal
             // If not, we have to rely on stream end. 

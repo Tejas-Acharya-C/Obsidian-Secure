@@ -20,12 +20,20 @@
             {% if not expired %}
             <h3 class="text-base font-mono text-ink-primary mb-2 break-all">{{ display_name if display_name else filename }}</h3>
 
-            {% if alias %}
+            {% if alias and alias not in ['OBSIDIAN_CORE_14', 'OBSIDIAN_NODE', 'Obsidian Secure'] %}
             <p class="text-sm text-ink-secondary">Shared by <span class="text-ink-primary font-medium">{{ alias }}</span></p>
+            {% else %}
+            <p class="text-sm text-ink-secondary">Shared via <span class="text-ink-primary font-medium">Obsidian Secure</span></p>
             {% endif %}
 
             {% if file_size %}
             <p class="text-xs text-ink-secondary/80 mt-2">Size: <span class="text-ink-primary font-mono font-medium">{{ (file_size / (1024 * 1024))|round(1) if file_size >= 1048576 else (file_size / 1024)|round(1) }}{{ ' MB' if file_size >= 1048576 else ' KB' }}</span></p>
+            {% endif %}
+
+            {% if expiry_time %}
+            <p class="text-xs text-ink-secondary/80 mt-1">Expires on: <span class="text-ink-primary font-medium">{{ expiry_time.strftime('%b %d, %Y %H:%M UTC') }}</span></p>
+            {% else %}
+            <p class="text-xs text-ink-secondary/80 mt-1">Expiry: <span class="text-ink-primary font-medium">No automatic expiry</span></p>
             {% endif %}
             {% endif %}
         </div>
@@ -57,7 +65,7 @@
                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">memory</span> 
                 <strong>Large File Warning</strong>
             </p>
-            <p class="text-xs text-ink-secondary mt-1 block">This file is over 100MB. Downloading on mobile browsers or Safari may cause the page to crash due to memory limits. A desktop Chromium browser is recommended.</p>
+            <p class="text-xs text-ink-secondary mt-1 block">Large downloads may require significant memory and could fail on some mobile browsers. For best results use a desktop Chromium-based browser.</p>
         </div>
         {% endif %}
 

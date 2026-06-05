@@ -11,7 +11,7 @@
         <div class="surface-card surface-card--primary stagger-children">
             <div class="mb-4 flex flex-col items-center text-center">
                 <img src="/static/img/logo.png" alt="" class="h-10 w-auto object-contain mb-3" aria-hidden="true">
-                <h1 class="text-lg font-semibold text-ink-primary mb-1">Workspace Login</h1>
+                <h1 class="text-lg font-semibold text-ink-primary mb-1">Account Login</h1>
                 <p class="text-ink-secondary text-xs">Access your secure sharing console.</p>
             </div>
 
@@ -32,7 +32,7 @@
             </div>
             {% endif %}
 
-            <form method="POST" action="/login" class="space-y-3" id="login-form" novalidate>
+            <form method="POST" action="/login" class="space-y-3" id="login-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
                 <div>

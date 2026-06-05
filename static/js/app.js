@@ -299,22 +299,22 @@ const ObsidianSecure = (() => {
                         <span class="w-1.5 h-1.5 bg-sage rounded-full"></span>
                         <span>Active</span>
                     </span>
-                    <span class="w-1 h-1 rounded-full bg-archival-border" aria-hidden="true"></span>
-                    <span class="text-ink-secondary">Uploaded ${escapeHtml(formatUtcLabel(share.upload_time))} UTC</span>
-                    <span class="w-1 h-1 rounded-full bg-archival-border" aria-hidden="true"></span>
+                    <span class="w-1 h-1 rounded-full bg-archival-border hidden sm:block" aria-hidden="true"></span>
+                    <span class="text-ink-secondary hidden sm:inline">Uploaded ${escapeHtml(formatUtcLabel(share.upload_time))} UTC</span>
+                    <span class="w-1 h-1 rounded-full bg-archival-border hidden sm:block" aria-hidden="true"></span>
                     <span class="text-ink-secondary expiry-countdown" data-expiry-time="${escapeHtml(share.expiry_time || '')}"></span>
                     <span class="w-1 h-1 rounded-full bg-archival-border" aria-hidden="true"></span>
                     <span class="text-ink-secondary">0 opens</span>
                 </div>
             </div>
             <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
-                <button type="button" data-copy-url="${escapeHtml(share.public_url)}" class="btn-secondary py-1 px-3 text-[11px] min-h-[32px]" aria-label="Copy link for ${escapeHtml(share.original_name || 'shared file')}">
+                <button type="button" data-copy-url="${escapeHtml(share.public_url)}" class="btn-secondary py-1 px-3 text-[11px] min-h-[44px] sm:min-h-[32px]" aria-label="Copy link for ${escapeHtml(share.original_name || 'shared file')}">
                     Copy link
                 </button>
                 <form action="/revoke" method="POST" class="inline">
                     <input type="hidden" name="csrf_token" value="${escapeHtml(getCSRFToken())}">
                     <input type="hidden" name="public_url" value="${escapeHtml(share.public_url)}">
-                    <button type="submit" class="btn-destructive py-1 px-3 text-[11px] min-h-[32px] hover:bg-destructive/10" aria-label="Revoke access to ${escapeHtml(share.original_name || 'shared file')}">
+                    <button type="submit" class="btn-destructive py-1 px-3 text-[11px] min-h-[44px] sm:min-h-[32px] hover:bg-destructive/10" aria-label="Revoke access to ${escapeHtml(share.original_name || 'shared file')}">
                         Revoke
                     </button>
                 </form>
@@ -366,6 +366,7 @@ const ObsidianSecure = (() => {
     }
 
     function initMobileNavigation() {
+        const panel = document.getElementById('mobile-nav-panel');
         document.querySelectorAll('#mobile-nav-toggle').forEach((toggle) => {
             toggle.addEventListener('click', toggleMobileNavigation);
         });
@@ -374,6 +375,26 @@ const ObsidianSecure = (() => {
 
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') closeMobileNavigation();
+            
+            // Focus trap
+            if (panel && panel.classList.contains('active') && event.key === 'Tab') {
+                const focusables = panel.querySelectorAll('a[href], button:not([disabled]), input:not([disabled])');
+                if (focusables.length === 0) return;
+                const first = focusables[0];
+                const last = focusables[focusables.length - 1];
+                
+                if (event.shiftKey) {
+                    if (document.activeElement === first) {
+                        event.preventDefault();
+                        last.focus();
+                    }
+                } else {
+                    if (document.activeElement === last) {
+                        event.preventDefault();
+                        first.focus();
+                    }
+                }
+            }
         });
 
         document.querySelectorAll('#mobile-nav-panel a').forEach((link) => {
@@ -695,11 +716,11 @@ const ObsidianSecure = (() => {
         // eslint-disable-next-line no-undef
         new QRCode(container, {
             text: url,
-            width: 128,
-            height: 128,
+            width: 256,
+            height: 256,
             colorDark: '#000000',
             colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.L
+            correctLevel: QRCode.CorrectLevel.M
         });
     }
 
@@ -746,6 +767,11 @@ const ObsidianSecure = (() => {
             });
 
             if (generatedCipherUrl) generateQRCode('cipher-qr-container', generatedCipherUrl);
+            
+            const cipherSuccessKeyless = document.getElementById('cipher-success-keyless');
+            const cipherSuccessWithKey = document.getElementById('cipher-success-with-key');
+            if (cipherSuccessKeyless) cipherSuccessKeyless.classList.add('hidden');
+            if (cipherSuccessWithKey) cipherSuccessWithKey.classList.remove('hidden');
         }
     }
 
@@ -822,23 +848,7 @@ const ObsidianSecure = (() => {
                 return;
             }
 
-            if ('showSaveFilePicker' in window) {
-                const saveName = button.dataset.displayName || filename;
-                let fileHandle;
-                try {
-                    fileHandle = await window.showSaveFilePicker({ suggestedName: saveName });
-                } catch (error) {
-                    if (error.name === 'AbortError') {
-                        button.innerHTML = originalHtml;
-                        button.disabled = false;
-                        return;
-                    }
-                    throw error;
-                }
-
-                const writable = await fileHandle.createWritable();
-                await decryptStreamToStream(response.body, writable, key);
-            } else {
+            async function runBlobFallback() {
                 const encryptedBlob = await response.blob();
                 const plainBlob = await decryptFileAuto(encryptedBlob, key);
                 const url = URL.createObjectURL(plainBlob);
@@ -847,6 +857,37 @@ const ObsidianSecure = (() => {
                 anchor.download = button.dataset.displayName || filename;
                 anchor.click();
                 setTimeout(() => URL.revokeObjectURL(url), 60000);
+            }
+
+            let useFallback = true;
+            if ('showSaveFilePicker' in window) {
+                const saveName = button.dataset.displayName || filename;
+                let fileHandle;
+                try {
+                    fileHandle = await window.showSaveFilePicker({ suggestedName: saveName });
+                    useFallback = false;
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        button.innerHTML = originalHtml;
+                        button.disabled = false;
+                        return;
+                    }
+                    console.warn('showSaveFilePicker failed, falling back to Blob download:', error);
+                }
+
+                if (!useFallback) {
+                    try {
+                        const writable = await fileHandle.createWritable();
+                        await decryptStreamToStream(response.body, writable, key);
+                    } catch (error) {
+                        console.warn('Writing stream failed, falling back to Blob download:', error);
+                        useFallback = true;
+                    }
+                }
+            }
+
+            if (useFallback) {
+                await runBlobFallback();
             }
 
             button.innerHTML = '<span class="material-symbols-outlined text-[20px]" aria-hidden="true">check_circle</span> Download complete';
@@ -898,6 +939,12 @@ const ObsidianSecure = (() => {
             const key = await importKey(keyB64);
             const plaintext = await decryptText(encryptedB64, key);
 
+            // Mark as read on server after successful decryption
+            const publicId = window.location.pathname.split('/').pop();
+            try {
+                await fetch(`/api/cipher/confirm_read/${publicId}`, { method: 'POST' });
+            } catch (e) { console.error('Confirmation failed', e); }
+
             document.getElementById('decrypt-prompt')?.classList.add('hidden');
             const content = document.getElementById('decrypted-content');
             if (content) {
@@ -906,24 +953,6 @@ const ObsidianSecure = (() => {
             }
             const messageField = document.getElementById('plaintext-message');
             if (messageField) messageField.textContent = plaintext;
-
-            const container = document.getElementById('plaintext-container');
-            if (container) {
-                const restrictAction = (event) => {
-                    event.preventDefault();
-                    showToast('Copying is restricted for secure messages', 'error');
-                };
-                container.addEventListener('copy', restrictAction);
-                container.addEventListener('cut', restrictAction);
-                container.addEventListener('contextmenu', restrictAction);
-                container.addEventListener('dragstart', restrictAction);
-                container.addEventListener('keydown', (event) => {
-                    if ((event.ctrlKey || event.metaKey) && (event.key === 'c' || event.key === 'x')) {
-                        event.preventDefault();
-                        showToast('Copying is restricted for secure messages', 'error');
-                    }
-                });
-            }
         } catch (_) {
             showDecryptError('Decryption failed. The link may be incomplete or the message may be corrupted.');
             button.innerHTML = '<span class="material-symbols-outlined text-[20px]" aria-hidden="true">lock_open</span> Decrypt Message';
@@ -1032,6 +1061,36 @@ const ObsidianSecure = (() => {
         window.addEventListener('resize', onScroll, { passive: true });
     }
 
+    // --- Destructive Action Confirmations ---
+    function initConfirmationDialogs() {
+        const confirmDialog = document.getElementById('confirm-dialog');
+        const confirmCancel = document.getElementById('confirm-dialog-cancel');
+        const confirmOk = document.getElementById('confirm-dialog-confirm');
+        if (!confirmDialog || !confirmCancel || !confirmOk) return;
+
+        let currentPendingForm = null;
+
+        document.querySelectorAll('form.confirm-destructive').forEach(form => {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                currentPendingForm = form;
+                confirmDialog.showModal();
+            });
+        });
+
+        confirmCancel.addEventListener('click', () => {
+            currentPendingForm = null;
+            confirmDialog.close();
+        });
+
+        confirmOk.addEventListener('click', () => {
+            if (currentPendingForm) {
+                currentPendingForm.submit();
+            }
+            confirmDialog.close();
+        });
+    }
+
     // --- Init ---
     function initPage() {
         initToastFromBody();
@@ -1049,6 +1108,7 @@ const ObsidianSecure = (() => {
         initLandingParallax();
         loadFragmentKeys();
         initExpiryCountdowns();
+        initConfirmationDialogs();
     }
 
     document.addEventListener('DOMContentLoaded', initPage);
