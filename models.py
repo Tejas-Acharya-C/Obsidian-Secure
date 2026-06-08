@@ -9,7 +9,6 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -41,10 +40,18 @@ class Cipher(db.Model):
     burn_on_read = db.Column(db.Boolean, default=True)
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    sender_alias = db.Column(db.String(255), nullable=True)
 
 class Setting(db.Model):
     key = db.Column(db.String(50), primary_key=True)
     value = db.Column(db.String(255), nullable=False)
+
+class UserSetting(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    key = db.Column(db.String(50), nullable=False)
+    value = db.Column(db.String(255), nullable=False)
+    __table_args__ = (db.UniqueConstraint('user_id', 'key', name='uq_user_setting'),)
 
 class LoginAttempt(db.Model):
     ip = db.Column(db.String(45), primary_key=True)

@@ -5,7 +5,7 @@ Covers: Auth, File Sharing, Secure Messages, Expiry, Revoke, Security, Edge Case
 import os, sys, json, time, re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app import app, db, User, Share, Transfer, Cipher, Setting, LoginAttempt, RegistrationAttempt
+from app import app, db, User, Share, Transfer, Cipher, UserSetting, LoginAttempt, RegistrationAttempt
 from werkzeug.security import generate_password_hash
 from datetime import datetime, timedelta
 
@@ -41,11 +41,9 @@ def run_audit():
         
         # Create test users
         admin = User(username='audit_admin', 
-                    password_hash=generate_password_hash('AdminPass1!'),
-                    is_admin=True)
+                    password_hash=generate_password_hash('AdminPass1!'))
         normal = User(username='audit_user',
-                     password_hash=generate_password_hash('UserPass1!'),
-                     is_admin=False)
+                     password_hash=generate_password_hash('UserPass1!'))
         db.session.add_all([admin, normal])
         db.session.commit()
 
@@ -155,7 +153,7 @@ def run_audit():
         check("Dashboard: accessible after login (200)", resp.status_code == 200)
         html = resp.data.decode()
         check("Dashboard: contains nav links", 'Files' in html and 'Messages' in html)
-        check("Dashboard: contains settings link (admin)", '/settings' in html)
+        check("Dashboard: contains settings link", '/settings' in html)
         
         # --- Non-admin user ---
         c4 = app.test_client()
@@ -177,7 +175,7 @@ def run_audit():
             csrf = s.get('csrf_token', 'tok')
         resp = c4.post('/api/settings', json={'alias': 'HACKED'}, 
                       headers={'X-CSRF-Token': csrf})
-        check("Non-admin: /api/settings returns 403", resp.status_code == 403)
+        check("Non-admin: /api/settings returns 200", resp.status_code == 200)
         
         # --- Logout ---
         with c3.session_transaction() as s:
@@ -461,6 +459,61 @@ def run_audit():
         check("Cipher page: returns 200", resp.status_code == 200)
         check("Cipher page: lists active ciphers", 'Copy link' in html or 'No messages yet' in html)
         
+        # Cipher Identity and Sender Consistency Tests (Phase 22.2)
+        with c8.session_transaction() as s:
+            csrf = s.get('csrf_token', 'tok')
+        c8.post('/api/settings', json={'alias': 'Tejas'}, headers={'X-CSRF-Token': csrf})
+        
+        with c8.session_transaction() as s:
+            s['csrf_token'] = 'tok'
+        c8.post('/cipher/create', data={
+            'content': 'dGVzdF9pZGVudGl0eV9wYXlsb2Fk',
+            'burn_on_read': 'false',
+            'csrf_token': 'tok'
+        }, follow_redirects=True)
+        
+        cipher_identity = Cipher.query.filter_by(content='dGVzdF9pZGVudGl0eV9wYXlsb2Fk').first()
+        check("Cipher Identity: message created", cipher_identity is not None)
+        
+        pub_client = app.test_client()
+        resp = pub_client.get(f'/decrypt/{cipher_identity.public_id}')
+        html = resp.data.decode()
+        check("Cipher Identity: sender alias displayed is Tejas", 'Tejas' in html)
+        
+        with c8.session_transaction() as s:
+            csrf = s.get('csrf_token', 'tok')
+        c8.post('/api/settings', json={'alias': 'Acharya'}, headers={'X-CSRF-Token': csrf})
+        
+        resp = pub_client.get(f'/decrypt/{cipher_identity.public_id}')
+        html = resp.data.decode()
+        check("Cipher Identity: sender alias is still Tejas after user alias change", 'Tejas' in html and 'Acharya' not in html)
+        
+        with c8.session_transaction() as s:
+            s['csrf_token'] = 'tok'
+        c8.post('/cipher/create', data={
+            'content': 'bmV3X2lkZW50aXR5X3BheWxvYWQ=',
+            'burn_on_read': 'false',
+            'csrf_token': 'tok'
+        }, follow_redirects=True)
+        
+        new_cipher_identity = Cipher.query.filter_by(content='bmV3X2lkZW50aXR5X3BheWxvYWQ=').first()
+        resp = pub_client.get(f'/decrypt/{new_cipher_identity.public_id}')
+        html = resp.data.decode()
+        check("Cipher Identity: new message displays updated alias Acharya", 'Acharya' in html)
+        
+        legacy_cipher = Cipher(
+            content='bGVnYWN5X3BheWxvYWQ=',
+            public_id='legacy12345publicid',
+            burn_on_read=False,
+            sender_alias=None
+        )
+        db.session.add(legacy_cipher)
+        db.session.commit()
+        
+        resp = pub_client.get(f'/decrypt/legacy12345publicid')
+        html = resp.data.decode()
+        check("Cipher Identity: legacy message falls back to Obsidian Secure display", 'Obsidian Secure' in html)
+        
         # ================================================================
         # PHASE 5 - SECURITY REGRESSION
         # ================================================================
@@ -654,13 +707,15 @@ def run_audit():
             models_src = f.read()
         
         check("Models: User model has password_hash", 'password_hash' in models_src)
-        check("Models: User model has is_admin", 'is_admin' in models_src)
+        check("Models: User model does not have is_admin", 'is_admin' not in models_src)
+        check("Models: UserSetting model exists", 'UserSetting' in models_src)
         check("Models: Share model has expiry_time", 'expiry_time' in models_src)
         check("Models: Share model has user_id FK", 'user_id' in models_src and 'ForeignKey' in models_src)
         check("Models: Cipher model has public_id", 'public_id' in models_src)
         check("Models: Cipher model has burn_on_read", 'burn_on_read' in models_src)
         check("Models: Cipher model has is_read", 'is_read' in models_src)
         check("Models: Transfer cascade delete", 'cascade' in models_src)
+        check("Models: Cipher model has sender_alias", 'sender_alias' in models_src)
         check("Models: LoginAttempt model exists", 'LoginAttempt' in models_src)
         
         # Verify no orphaned DB records
@@ -703,7 +758,10 @@ def run_audit():
         Cipher.query.filter(Cipher.content.in_([
             'dGVzdF9lbmNyeXB0ZWRfcGF5bG9hZA==',
             'bm9uX2J1cm5fdGVzdA==',
-            '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'
+            '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;',
+            'dGVzdF9pZGVudGl0eV9wYXlsb2Fk',
+            'bmV3X2lkZW50aXR5X3BheWxvYWQ=',
+            'bGVnYWN5X3BheWxvYWQ='
         ])).delete()
         Share.query.filter(Share.original_name.in_([
             'test_document.txt', 'admin_secret.txt', long_name, special_name

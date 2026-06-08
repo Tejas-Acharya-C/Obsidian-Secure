@@ -41,17 +41,7 @@ python app.py
 ```
 By default, the server runs on `http://127.0.0.1:5000`.
 
----
 
-## Bootstrapping an Admin User
-
-To create an administrator account locally for managing global settings and revoking shares:
-```bash
-python create_admin.py
-```
-This interactive script will prompt you for a username (default: `admin`) and a password (minimum 8 characters).
-
----
 
 ## Running Tests
 

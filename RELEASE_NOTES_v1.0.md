@@ -12,7 +12,7 @@ We are proud to present **Obsidian Secure v1.0.0**, the initial production-ready
 - **Automatic Expiration**: Uploaded file links expire automatically (default: 1 hour for auto-revoke shares, 7 days for standard shares).
 - **Periodic Background Cleanup**: The server runs a background cleanup thread to delete expired files from disk and the database, preventing storage bloating and ensuring security hygiene.
 - **Dynamic CSS Design System**: Responsive glassmorphic UI utilizing custom HSL color palettes and micro-animations.
-- **Administrative Settings Panel**: Seeded global settings allowing administrators to adjust system aliases, enforce auto-revocation, or toggle ghost mode.
+- **Per-User Settings Panel**: Localized user settings allowing each authenticated user to adjust their system aliases, enforce auto-revocation, or toggle ghost mode.
 - **Asynchronous Metrics Logging**: Thread-safe batching system (`MetricsBatcher`) to queue database writes for downloads, improving response latency.
 
 ---
@@ -53,4 +53,3 @@ Obsidian Secure is structured as a modern lightweight Flask-SQLAlchemy applicati
 Obsidian Secure is designed to run easily in containerized or cloud PaaS environments:
 - **Render Deployment**: Ready-to-use infrastructure definition is supplied via `render.yaml`. Includes persistent disk storage for files and database configuration.
 - **WSGI Runner**: Production server utilizes Gunicorn via the configured `Procfile`. Waitress has been deprecated.
-- **Bootstrap Command**: The application provides `create_admin.py` to provision administrative users on first-time deployment.

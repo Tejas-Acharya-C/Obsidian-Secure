@@ -9,7 +9,7 @@ import secrets
 # Add project to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app import app, db, User, Share, Cipher, Setting
+from app import app, db, User, Share, Cipher, UserSetting
 from werkzeug.security import generate_password_hash
 from datetime import datetime, timedelta
 
@@ -33,15 +33,13 @@ def run_tests():
         admin = User.query.filter_by(username='test_admin_verify').first()
         if not admin:
             admin = User(username='test_admin_verify', 
-                        password_hash=generate_password_hash('Admin123!'), 
-                        is_admin=True)
+                        password_hash=generate_password_hash('Admin123!'))
             db.session.add(admin)
         
         normal = User.query.filter_by(username='test_user_verify').first()
         if not normal:
             normal = User(username='test_user_verify',
-                         password_hash=generate_password_hash('User123!'),
-                         is_admin=False)
+                         password_hash=generate_password_hash('User123!'))
             db.session.add(normal)
         db.session.commit()
         
@@ -192,7 +190,7 @@ def run_tests():
               if "def create_cipher" in app_source else False)
         
         # ====================================================
-        # 5. SETTINGS ADMIN ACCESS
+        # 5. SETTINGS ACCESS CONSISTENCY
         # ====================================================
         print("\n[5] SETTINGS ACCESS CONSISTENCY")
         
@@ -215,13 +213,13 @@ def run_tests():
         resp = client2.get('/settings', follow_redirects=False)
         check("Non-admin /settings returns 200", resp.status_code == 200)
         
-        # API also blocked for non-admin
+        # API now allowed for any authenticated user
         with client2.session_transaction() as sess:
             csrf = sess.get('csrf_token', 'test_csrf')
         resp = client2.post('/api/settings', 
-                          json={'alias': 'HACKED'},
+                          json={'alias': 'TEST_ALIAS_VAL'},
                           headers={'X-CSRF-Token': csrf})
-        check("Non-admin /api/settings returns 403", resp.status_code == 403)
+        check("Non-admin /api/settings returns 200", resp.status_code == 200)
         
         # Login as admin via proper login flow
         client3 = app.test_client()

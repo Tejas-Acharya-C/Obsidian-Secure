@@ -67,8 +67,7 @@ sequenceDiagram
 
 ```text
 ├── app.py                     # Main application entry point, routing, and WSGI middleware
-├── models.py                  # SQLAlchemy models (User, Share, Transfer, Cipher, Settings)
-├── create_admin.py            # CLI bootstrap utility to securely provision admin users
+├── models.py                  # SQLAlchemy models (User, Share, Transfer, Cipher, UserSetting)
 ├── pyrightconfig.json         # Static analysis type checker configuration
 ├── render.yaml                # Render Infrastructure-as-Code (IaC) deployment configuration
 ├── Procfile                   # Process file for production WSGI server execution
@@ -123,17 +122,10 @@ sequenceDiagram
    pip install -r requirements.txt
    ```
 
-4. **Initialize Database and Seed Settings**:
-   The application initializes the SQLite database (`qr_app.db`) and seeds settings on its initial launch.
+4. **Initialize Database**:
+   The application initializes the SQLite database (`qr_app.db`) on its initial launch.
 
-5. **Bootstrap the Administrator User**:
-   Run the CLI utility to create the primary administrator account:
-   ```bash
-   python create_admin.py
-   ```
-   Follow the prompts to enter your custom admin username and password.
-
-6. **Run the Development Server**:
+5. **Run the Development Server**:
    ```bash
    python app.py
    ```

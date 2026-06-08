@@ -18,7 +18,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 # Enterprise Models
-from models import db, User, Share, Transfer, Setting, Cipher, LoginAttempt, RegistrationAttempt
+from models import db, User, Share, Transfer, UserSetting, Cipher, LoginAttempt, RegistrationAttempt
 
 app = None
 
@@ -97,16 +97,6 @@ try:
     def init_enterprise_db():
         with app.app_context():
             db.create_all()
-            # Seed default settings
-            defaults = {
-                'alias': 'OBSIDIAN_CORE_14',
-                'auto_revoke': 'true',
-                'ghost_mode': 'false'
-            }
-            for key, val in defaults.items():
-                if not Setting.query.get(key):
-                    db.session.add(Setting(key=key, value=val))
-            db.session.commit()
     
     init_enterprise_db()
 except Exception as e:
@@ -270,12 +260,9 @@ def register_page():
         if User.query.filter_by(username=username).first():
             return render_template('register.html', error='USER_EXISTS')
             
-        # Admin Assignment Hardening
-        # All new registrations are standard users (is_admin=False)
         new_user = User(
             username=username,
-            password_hash=generate_password_hash(password),
-            is_admin=False
+            password_hash=generate_password_hash(password)
         )
         db.session.add(new_user)
         db.session.commit()
@@ -448,9 +435,19 @@ def get_local_ip():
 
 # Removed generate_qr_base64
 
-def get_setting(key, default=None):
-    s = Setting.query.get(key)
-    return s.value if s else default
+USER_SETTING_DEFAULTS = {
+    'alias': 'OBSIDIAN_NODE',
+    'auto_revoke': 'true',
+    'ghost_mode': 'false'
+}
+
+def get_user_setting(user_id, key, default=None):
+    if not user_id:
+        return USER_SETTING_DEFAULTS.get(key, default)
+    s = UserSetting.query.filter_by(user_id=user_id, key=key).first()
+    if s:
+        return s.value
+    return USER_SETTING_DEFAULTS.get(key, default)
 
 
 def is_password_valid(password):
@@ -495,7 +492,7 @@ def inject_global_vars():
         if not current_user.is_authenticated:
             return dict(notifications=[], now=datetime.utcnow)
 
-        is_ghost = get_setting('ghost_mode') == 'true'
+        is_ghost = get_user_setting(current_user.id, 'ghost_mode') == 'true'
         
         raw_notifications = Share.query.filter(Share.download_count > 0).order_by(Share.id.desc()).limit(5).all()
         notifications = []
@@ -523,7 +520,7 @@ def home_page():
 def dashboard():
     public_url = session.pop('success_public_url', None)
     message = session.pop('success_message', None)
-    is_ghost = get_setting('ghost_mode') == 'true'
+    is_ghost = get_user_setting(current_user.id, 'ghost_mode') == 'true'
     shares = Share.query.filter_by(user_id=current_user.id).order_by(Share.upload_time.desc()).all()
     shares_list = [serialize_share(row, is_ghost=is_ghost) for row in shares]
     return render_template('dashboard.html', current_page='files', 
@@ -570,11 +567,15 @@ def create_cipher():
     base_url = f"https://{RENDER_DOMAIN}" if os.environ.get('RENDER') else f"{request.scheme}://{request.host}"
     decrypt_url = f"{base_url}/decrypt/{public_id}"
     
+    # Capture current user's alias snapshot
+    sender_alias = get_user_setting(current_user.id, 'alias', 'OBSIDIAN_NODE')
+
     new_cipher = Cipher(
         content=content,
         public_id=public_id,
         burn_on_read= (burn == 'true'),
-        created_at=datetime.utcnow()
+        created_at=datetime.utcnow(),
+        sender_alias=sender_alias
     )
     db.session.add(new_cipher)
     db.session.commit()
@@ -590,7 +591,7 @@ def decrypt_cipher(public_id):
         return render_template('cipher_read.html', content=None, expired=True, alias=None)
     
     content = row.content
-    alias = get_setting('alias', 'OBSIDIAN_NODE')
+    alias = row.sender_alias if row.sender_alias else 'OBSIDIAN_NODE'
     
     return render_template('cipher_read.html', content=content, expired=False, alias=alias)
 
@@ -605,7 +606,15 @@ def confirm_cipher_read(public_id):
 @app.route('/settings')
 @login_required
 def settings_page():
-    rows = Setting.query.all()
+    # Lazy initialize settings for this user if they don't exist yet
+    for key in ALLOWED_SETTINGS:
+        s = UserSetting.query.filter_by(user_id=current_user.id, key=key).first()
+        if not s:
+            default_val = USER_SETTING_DEFAULTS.get(key)
+            db.session.add(UserSetting(user_id=current_user.id, key=key, value=default_val))
+    db.session.commit()
+
+    rows = UserSetting.query.filter_by(user_id=current_user.id).all()
     settings = {row.key: row.value for row in rows}
     size_bytes = get_storage_size(app.config['UPLOAD_FOLDER'])
     size_mb = round(size_bytes / (1024 * 1024), 2)
@@ -660,9 +669,6 @@ def change_password():
 @app.route('/api/settings', methods=['POST'])
 @login_required
 def update_settings():
-    if not current_user.is_admin:
-        return {'error': 'Unauthorized'}, 403
-
     token = request.headers.get('X-CSRF-Token')
     if not token or token != session.get('csrf_token'):
         return {'error': 'CSRF validation failed'}, 403
@@ -671,9 +677,15 @@ def update_settings():
     for key, value in data.items():
         if key not in ALLOWED_SETTINGS:
             continue
-        s = Setting.query.get(key)
-        if s:
-            s.value = str(value).lower()
+        val_str = str(value)
+        if key in ('auto_revoke', 'ghost_mode'):
+            val_str = val_str.lower()
+        s = UserSetting.query.filter_by(user_id=current_user.id, key=key).first()
+        if not s:
+            s = UserSetting(user_id=current_user.id, key=key, value=val_str)
+            db.session.add(s)
+        else:
+            s.value = val_str
     db.session.commit()
     return {"status": "success"}
 
@@ -705,9 +717,9 @@ def revoke_link():
     
     share_url = request.form.get('public_url')
     if share_url:
-        # Security: Only revoke if I am the owner or admin
+        # Security: Only revoke if I am the owner
         share = Share.query.filter_by(public_url=share_url).first()
-        if share and (share.user_id == current_user.id or current_user.is_admin):
+        if share and (share.user_id == current_user.id):
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], share.filename)
             if os.path.exists(file_path):
                 try: os.remove(file_path)
@@ -726,8 +738,12 @@ def landing_page(filename):
     is_ghost = False
     alias = 'OBSIDIAN_NODE'
     try:
-        is_ghost = get_setting('ghost_mode') == 'true'
-        alias = get_setting('alias', 'OBSIDIAN_NODE')
+        if share.user_id:
+            is_ghost = get_user_setting(share.user_id, 'ghost_mode') == 'true'
+            alias = get_user_setting(share.user_id, 'alias', 'OBSIDIAN_NODE')
+        else:
+            is_ghost = USER_SETTING_DEFAULTS.get('ghost_mode') == 'true'
+            alias = USER_SETTING_DEFAULTS.get('alias', 'OBSIDIAN_NODE')
     except:
         pass
     
@@ -784,7 +800,7 @@ def upload_file_stream():
     
     # If this is the final chunk, finalize the share record
     if chunk_index == total_chunks - 1:
-        is_auto_revoke = get_setting('auto_revoke') == 'true'
+        is_auto_revoke = get_user_setting(current_user.id, 'auto_revoke') == 'true'
         upload_time = datetime.utcnow()
         expiry_delta = timedelta(hours=1) if is_auto_revoke else timedelta(days=7)
         expiry_time = upload_time + expiry_delta
@@ -808,7 +824,7 @@ def upload_file_stream():
             'redirect': url_for('dashboard'),
             'public_url': share_url,
             'share': {
-                'original_name': serialize_share(new_share, is_ghost=get_setting('ghost_mode') == 'true')['original_name'],
+                'original_name': serialize_share(new_share, is_ghost=get_user_setting(current_user.id, 'ghost_mode') == 'true')['original_name'],
                 'public_url': share_url,
                 'download_count': 0,
                 'upload_time': upload_time.isoformat() + 'Z',
