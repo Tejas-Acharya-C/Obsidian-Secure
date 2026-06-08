@@ -10,7 +10,7 @@
 
 {% block content %}
     {% if current_page == 'files' or not current_page %}
-    <div class="max-w-6xl w-full stagger-children flex-1 min-h-0 flex flex-col">
+    <div class="max-w-[1400px] w-full stagger-children flex flex-col">
         <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
             <div>
                 <h1 class="text-lg font-semibold text-ink-primary mb-1">Secure File Transfer</h1>
@@ -33,8 +33,8 @@
             </div>
         </div>
         
-        <div class="flex-1 min-h-0 overflow-y-auto pr-1 pb-8 scrollable-ledger">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch min-h-0">
+        <div class="flex-1 pb-8 scrollable-ledger">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
                 <!-- Left Half: File dropzone & selections -->
             <div class="order-2 lg:order-1">
                 <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
@@ -204,7 +204,7 @@
     </div>
 
     {% elif current_page == 'cipher' %}
-    <div class="max-w-2xl w-full stagger-children flex-1 min-h-0 flex flex-col">
+    <div class="max-w-2xl w-full stagger-children flex flex-col">
         <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
             <div>
                 <h1 class="text-lg font-semibold text-ink-primary mb-1">Secure Messages</h1>
@@ -223,7 +223,7 @@
             </div>
         </div>
 
-        <div class="flex-1 min-h-0 overflow-y-auto pr-1 space-y-6 scrollable-ledger">
+        <div class="pb-6 scrollable-ledger space-y-6">
             <form action="/cipher/create" method="POST" id="cipherForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" id="encrypted-message-input" name="content">
@@ -321,13 +321,13 @@
     </div>
 
     {% elif current_page == 'settings' %}
-    <div class="max-w-2xl w-full stagger-children flex-1 min-h-0 flex flex-col">
+    <div class="max-w-2xl w-full stagger-children flex flex-col">
         <div class="mb-6 shrink-0">
             <h1 class="text-lg font-semibold text-ink-primary mb-1">Settings</h1>
             <p class="text-ink-secondary text-xs">Manage your account security and sharing defaults.</p>
         </div>
 
-        <div class="flex-1 min-h-0 overflow-y-auto pr-1 scrollable-ledger">
+        <div class="pb-6 scrollable-ledger">
             <div class="surface-card surface-card--secondary space-y-8">
                 <div>
                     <h2 class="text-xs font-semibold text-ink-primary mb-4">Password</h2>
