@@ -6,13 +6,16 @@ from models import User
 
 def create_admin():
     with app.app_context():
+        # Prompt for admin username
+        username = input("Enter admin username [admin]: ").strip() or "admin"
+        
         # Check if the user already exists
-        existing_admin = User.query.filter_by(username="Tejas").first()
+        existing_admin = User.query.filter_by(username=username).first()
         if existing_admin:
-            print("Admin user 'Tejas' already exists.")
+            print(f"Admin user '{username}' already exists.")
             return
 
-        print("Creating admin user 'Tejas'.")
+        print(f"Creating admin user '{username}'.")
         
         # Prompt for password without echoing
         password = getpass.getpass(prompt='Enter password for admin: ')
@@ -29,7 +32,7 @@ def create_admin():
         # Hash password and create user
         password_hash = generate_password_hash(password)
         new_admin = User(
-            username="Tejas",
+            username=username,
             password_hash=password_hash,
             is_admin=True
         )
@@ -37,7 +40,7 @@ def create_admin():
         db.session.add(new_admin)
         db.session.commit()
         
-        print("Admin user 'Tejas' created successfully.")
+        print(f"Admin user '{username}' created successfully.")
 
 if __name__ == '__main__':
     create_admin()

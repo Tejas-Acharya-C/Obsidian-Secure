@@ -827,12 +827,11 @@ def upload_file():
 # --- STARTUP ---
 
 # Start background cleanup unconditionally so it runs under both
-# Waitress (python app.py) and Gunicorn (gunicorn app:app).
+# local development (python app.py) and Gunicorn (gunicorn app:app).
 cleanup_thread = threading.Thread(target=background_cleanup, daemon=True)
 cleanup_thread.start()
 
 if __name__ == "__main__":
-    from waitress import serve
     port = int(os.environ.get("PORT", 5000))
     print(f" * System Active on Port: {port} (Enterprise Mode)")
-    serve(app, host='0.0.0.0', port=port, threads=32)
+    app.run(host='0.0.0.0', port=port)

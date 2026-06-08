@@ -47,3 +47,7 @@ implementation_plans/
 *.md
 !README.md
 !LICENSE
+!CONTRIBUTING.md
+!SECURITY.md
+!RELEASE_NOTES_v1.0.md
+!.github/**/*.md
