@@ -867,7 +867,17 @@ const ObsidianSecure = (() => {
                 const saveName = button.dataset.displayName || filename;
                 let fileHandle;
                 try {
-                    fileHandle = await window.showSaveFilePicker({ suggestedName: saveName });
+                    const pickerOptions = { suggestedName: saveName };
+                    if (mimeType && mimeType !== 'application/octet-stream' && saveName.includes('.')) {
+                        const ext = '.' + saveName.split('.').pop().toLowerCase();
+                        pickerOptions.types = [{
+                            description: `${ext.slice(1).toUpperCase()} File`,
+                            accept: {
+                                [mimeType]: [ext]
+                            }
+                        }];
+                    }
+                    fileHandle = await window.showSaveFilePicker(pickerOptions);
                     useFallback = false;
                 } catch (error) {
                     if (error.name === 'AbortError') {
