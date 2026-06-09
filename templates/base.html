@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 
-<body class="{{ body_class or '' }}" data-toast-message="{{ message|e }}">
+<body class="{{ body_class or '' }}" data-toast-message="{% if message %}{{ message|e }}{% endif %}">
     <!-- Skip to main content (accessibility) -->
     <a href="#main-content" class="skip-link">Skip to main content</a>
 
@@ -30,10 +30,9 @@
     <nav class="sticky top-0 z-40 nav-bar" aria-label="Main navigation">
         <div class="max-w-[1400px] mx-auto px-6 md:px-10 h-16 flex items-center justify-between">
             <div class="flex items-center gap-8">
-                <!-- Identity -->
-                <a href="/" class="nav-brand flex items-center group" aria-label="Obsidian Secure — Home">
+                <a href="/" class="nav-brand flex items-center gap-3 group" aria-label="Obsidian Secure — Home">
                     <img src="/static/img/logo.png" alt="" class="h-8 w-auto object-contain" aria-hidden="true">
-                    <span class="sr-only">Obsidian Secure</span>
+                    <span class="brand-text text-sm font-semibold tracking-[0.18em] text-ink-primary uppercase">Obsidian Secure</span>
                 </a>
 
                 <!-- Main Nav Links (desktop) -->
@@ -126,7 +125,7 @@
 {% endif %}
 
     <!-- Main Layout Container -->
-    <main id="main-content" class="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10 flex flex-col animate-fade-in" role="main">
+    <main id="main-content" class="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10 flex flex-col animate-fade-in" role="main">
         {% block content %}{% endblock %}
     </main>
 

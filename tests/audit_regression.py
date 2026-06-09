@@ -117,7 +117,7 @@ def run_audit():
         
         # Valid registration
         resp = c.post('/register', data={
-            'username': 'audit_newuser', 'password': 'Test123!', 'csrf_token': 'tok'
+            'username': 'audit_newuser', 'password': 'Test123!', 'confirm_password': 'Test123!', 'csrf_token': 'tok'
         }, follow_redirects=False)
         check("Register: valid creates user + redirects", resp.status_code in [302, 303])
         
@@ -126,7 +126,7 @@ def run_audit():
         with c2.session_transaction() as s:
             s['csrf_token'] = 'tok'
         resp = c2.post('/register', data={
-            'username': 'audit_newuser', 'password': 'Test123!', 'csrf_token': 'tok'
+            'username': 'audit_newuser', 'password': 'Test123!', 'confirm_password': 'Test123!', 'csrf_token': 'tok'
         })
         check("Register: duplicate shows USER_EXISTS", b'username is already taken' in resp.data)
         
@@ -232,7 +232,7 @@ def run_audit():
             'username': 'audit_admin', 'password': 'AdminPass1!', 'csrf_token': 'tok'
         })
         check("Rate limit: 6+ failed attempts triggers rate limit",
-              b'Too many login attempts' in resp.data)
+              b'Too many attempts' in resp.data)
         
         # Clean up rate limit for remaining tests
         LoginAttempt.query.delete()

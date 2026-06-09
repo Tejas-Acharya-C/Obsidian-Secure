@@ -997,7 +997,7 @@ const ObsidianSecure = (() => {
         }
 
         const message = document.body.dataset.toastMessage;
-        if (!message) return;
+        if (!message || message.trim() === 'None') return;
 
         showToast(message);
         document.body.removeAttribute('data-toast-message');
@@ -1091,6 +1091,211 @@ const ObsidianSecure = (() => {
         });
     }
 
+    // --- Password Visibility Toggles (Phase 23) ---
+    function initPasswordToggles() {
+        document.querySelectorAll('[data-toggle-password]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.getAttribute('data-toggle-password');
+                const input = document.getElementById(targetId);
+                if (!input) return;
+
+                const isPassword = input.type === 'password';
+                input.type = isPassword ? 'text' : 'password';
+
+                const icon = btn.querySelector('.material-symbols-outlined');
+                if (icon) {
+                    icon.textContent = isPassword ? 'visibility_off' : 'visibility';
+                }
+
+                btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+            });
+        });
+    }
+
+    // --- Authentication Dynamic Form Validation (Phase 23) ---
+    function initAuthValidation() {
+        const registerForm = document.getElementById('register-form');
+        if (!registerForm) return;
+
+        const usernameInput = document.getElementById('register-username');
+        const passwordInput = document.getElementById('register-password');
+        const confirmInput = document.getElementById('register-confirm-password');
+
+        const userFeedback = document.getElementById('username-validation-feedback');
+        const passFeedback = document.getElementById('password-validation-feedback');
+        const confirmFeedback = document.getElementById('confirm-validation-feedback');
+
+        const strengthLabel = document.getElementById('strength-label-text');
+        const segments = [
+            document.getElementById('strength-seg-1'),
+            document.getElementById('strength-seg-2'),
+            document.getElementById('strength-seg-3'),
+            document.getElementById('strength-seg-4')
+        ];
+
+        function updateUsernameFeedback() {
+            const val = usernameInput.value;
+            if (!val) {
+                userFeedback.className = 'validation-feedback hidden';
+                userFeedback.innerHTML = '';
+                return;
+            }
+            userFeedback.classList.remove('hidden');
+            const regex = /^[A-Za-z0-9_]+$/;
+            if (regex.test(val) && val.length <= 50) {
+                userFeedback.className = 'validation-feedback valid';
+                userFeedback.innerHTML = '<span class="feedback-icon">✓</span> Valid username';
+            } else {
+                userFeedback.className = 'validation-feedback invalid';
+                userFeedback.innerHTML = '<span class="feedback-icon">✗</span> Letters, numbers and underscores only';
+            }
+        }
+
+        function updatePasswordFeedback() {
+            const val = passwordInput.value;
+            if (!val) {
+                passFeedback.className = 'validation-feedback hidden';
+                passFeedback.innerHTML = '';
+                updateStrengthMeter(0);
+                return;
+            }
+            passFeedback.classList.remove('hidden');
+            if (val.length >= 8) {
+                passFeedback.className = 'validation-feedback valid';
+                passFeedback.innerHTML = '<span class="feedback-icon">✓</span> Meets minimum requirements';
+            } else {
+                passFeedback.className = 'validation-feedback invalid';
+                passFeedback.innerHTML = '<span class="feedback-icon">✗</span> Minimum 8 characters required';
+            }
+
+            let score = 0;
+            if (val.length >= 8) {
+                score = 1;
+                if (/[A-Z]/.test(val)) score++;
+                if (/[a-z]/.test(val)) score++;
+                if (/[0-9]/.test(val)) score++;
+                if (/[^A-Za-z0-9]/.test(val)) score++;
+            }
+            updateStrengthMeter(score);
+            updateConfirmFeedback();
+        }
+
+        function updateStrengthMeter(score) {
+            segments.forEach(seg => {
+                if (seg) seg.className = 'strength-meter-segment';
+            });
+            if (strengthLabel) strengthLabel.className = '';
+
+            let label = 'None';
+            let className = '';
+            let activeCount = 0;
+
+            if (score > 0) {
+                if (score <= 1) {
+                    label = 'Weak';
+                    className = 'weak';
+                    activeCount = 1;
+                } else if (score === 2) {
+                    label = 'Fair';
+                    className = 'fair';
+                    activeCount = 2;
+                } else if (score === 3) {
+                    label = 'Good';
+                    className = 'good';
+                    activeCount = 3;
+                } else {
+                    label = 'Strong';
+                    className = 'strong';
+                    activeCount = 4;
+                }
+            }
+
+            if (strengthLabel) {
+                strengthLabel.textContent = label;
+                if (className) strengthLabel.classList.add(className);
+            }
+
+            for (let i = 0; i < activeCount; i++) {
+                if (segments[i]) segments[i].classList.add(className);
+            }
+        }
+
+        function updateConfirmFeedback() {
+            const val = confirmInput.value;
+            const pval = passwordInput.value;
+            if (!val) {
+                confirmFeedback.className = 'validation-feedback hidden';
+                confirmFeedback.innerHTML = '';
+                return;
+            }
+            confirmFeedback.classList.remove('hidden');
+            if (val === pval) {
+                confirmFeedback.className = 'validation-feedback valid';
+                confirmFeedback.innerHTML = '<span class="feedback-icon">✓</span> Passwords match';
+            } else {
+                confirmFeedback.className = 'validation-feedback invalid';
+                confirmFeedback.innerHTML = '<span class="feedback-icon">✗</span> Passwords do not match';
+            }
+        }
+
+        usernameInput.addEventListener('input', updateUsernameFeedback);
+        passwordInput.addEventListener('input', updatePasswordFeedback);
+        confirmInput.addEventListener('input', updateConfirmFeedback);
+
+        registerForm.addEventListener('submit', (e) => {
+            const val = usernameInput.value;
+            const pval = passwordInput.value;
+            const cval = confirmInput.value;
+            const regex = /^[A-Za-z0-9_]+$/;
+
+            if (!val || !pval || !cval) {
+                e.preventDefault();
+                showToast('Please fill out all fields', 'error');
+                return;
+            }
+
+            if (!regex.test(val) || val.length > 50) {
+                e.preventDefault();
+                showToast('Use only letters, numbers, and underscores for username', 'error');
+                return;
+            }
+
+            if (pval.length < 8) {
+                e.preventDefault();
+                showToast('Password must contain at least 8 characters', 'error');
+                return;
+            }
+
+            if (pval !== cval) {
+                e.preventDefault();
+                showToast('Passwords do not match', 'error');
+                return;
+            }
+        });
+    }
+
+    // --- Landing Page Interactive Demo (Phase 24) ---
+    function initLandingDemoCopy() {
+        const btn = document.getElementById('demo-copy-btn');
+        const input = document.getElementById('demo-share-input');
+        if (!btn || !input) return;
+
+        btn.addEventListener('click', () => {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(input.value.trim()).then(() => {
+                    showToast('Demo link copied. Create an account to generate real secure links!', 'info');
+                    setCopiedButtonState(btn);
+                }).catch(() => {
+                    showToast('Demo link copied. Create an account to generate real secure links!', 'info');
+                    setCopiedButtonState(btn);
+                });
+            } else {
+                showToast('Demo link copied. Create an account to generate real secure links!', 'info');
+                setCopiedButtonState(btn);
+            }
+        });
+    }
+
     // --- Init ---
     function initPage() {
         initToastFromBody();
@@ -1109,6 +1314,9 @@ const ObsidianSecure = (() => {
         loadFragmentKeys();
         initExpiryCountdowns();
         initConfirmationDialogs();
+        initPasswordToggles();
+        initAuthValidation();
+        initLandingDemoCopy();
     }
 
     document.addEventListener('DOMContentLoaded', initPage);
