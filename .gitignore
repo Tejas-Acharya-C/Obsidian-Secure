@@ -49,5 +49,10 @@ implementation_plans/
 !LICENSE
 !CONTRIBUTING.md
 !SECURITY.md
+!CHANGELOG.md
+!ARCHITECTURE.md
 !RELEASE_NOTES_v1.0.md
 !.github/**/*.md
+
+# Flask Instance folder
+instance/

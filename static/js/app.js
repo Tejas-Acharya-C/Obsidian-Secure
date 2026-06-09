@@ -551,43 +551,19 @@ const ObsidianSecure = (() => {
                 totalSize += files[index].size;
             }
 
-            const maxSize = 5 * 1024 * 1024 * 1024;
+            const maxSize = 100 * 1024 * 1024;
             if (totalSize > maxSize) {
-                showToast(`Payload exceeds the maximum allowed limit of 5GB (Selected: ${(totalSize / (1024 * 1024 * 1024)).toFixed(2)}GB). Please share fewer or smaller files.`, 'error');
+                showToast(`Payload exceeds the maximum allowed limit of 100MB (Selected: ${(totalSize / (1024 * 1024)).toFixed(2)}MB). Please select a smaller file.`, 'error');
                 fileInput.value = '';
                 return;
             }
 
             uploadInProgress = true;
 
-            const hasDirectory = Array.from(files).some((file) => file.zipPath && file.zipPath.includes('/'));
-            const isMultiFile = files.length > 1 || hasDirectory;
-            let fileToEncrypt;
-            let displayFileName;
+            const fileToEncrypt = files[0];
+            const displayFileName = fileToEncrypt.name;
 
-            if (isMultiFile) {
-                let commonRoot = '';
-                if (hasDirectory) {
-                    const firstZipPath = files[0].zipPath || '';
-                    const parts = firstZipPath.split('/');
-                    if (parts.length > 1) {
-                        const candidate = parts[0];
-                        const sharedRoot = Array.from(files).every((file) => file.zipPath && file.zipPath.startsWith(`${candidate}/`));
-                        if (sharedRoot) commonRoot = candidate;
-                    }
-                }
-
-                if (commonRoot) {
-                    displayFileName = `${commonRoot}.zip`;
-                } else {
-                    const stamp = new Date().toISOString().slice(0, 19).replace(/[-T]/g, '_').replace(/:/g, '');
-                    displayFileName = `Shared_Archive_${stamp}.zip`;
-                }
-            } else {
-                displayFileName = files[0].name;
-            }
-
-            setDropzoneBusyState(isMultiFile ? `${files.length} files selected` : displayFileName);
+            setDropzoneBusyState(displayFileName);
             progressPanel?.classList.remove('hidden');
             resetUploadProgressUI();
             updateUploadStage('Preparing upload', 5);
@@ -598,80 +574,48 @@ const ObsidianSecure = (() => {
             try {
                 setUploadStep('encrypt');
 
-                if (isMultiFile) {
-                    if (typeof JSZip === 'undefined') {
-                        throw new Error('ZIP module not loaded yet.');
-                    }
-
-                    const zip = new JSZip();
-                    for (let index = 0; index < files.length; index += 1) {
-                        const pathInZip = files[index].zipPath || files[index].name;
-                        zip.file(pathInZip, files[index]);
-                    }
-
-                    const zipBlob = await zip.generateAsync({ type: 'blob' });
-                    fileToEncrypt = new File([zipBlob], displayFileName, { type: 'application/zip' });
-                } else {
-                    fileToEncrypt = files[0];
-                }
-
                 const key = await generateKey();
                 const exportedKey = await exportKey(key);
-
-                const onEncryptProgress = (progress) => {
-                    const percent = Math.round((progress.bytesProcessed / progress.totalBytes) * 100) || 0;
-                    updateProgressText('encrypt-percent', percent);
-                    updateLinearProgress('encrypt-progress-bar', percent);
-                    updateUploadStage('Encrypting locally...', percent);
-                };
 
                 const csrfToken = getCSRFToken();
                 const originalNameB64 = btoa(unescape(encodeURIComponent(displayFileName)));
                 const mimeType = fileToEncrypt.type || 'application/octet-stream';
-                const encryptedStream = encryptFileToStream(fileToEncrypt, key, onEncryptProgress);
-                const reader = encryptedStream.getReader();
+
+                updateUploadStage('Encrypting locally...', 50);
+                updateProgressText('encrypt-percent', 100);
+                updateLinearProgress('encrypt-progress-bar', 100);
+                
+                const encryptedBlob = await encryptFile(fileToEncrypt, key);
 
                 setUploadStep('upload');
                 updateUploadStage('Uploading encrypted file...', 0);
 
-                const uploadId = Array.from(crypto.getRandomValues(new Uint8Array(8))).map((byte) => byte.toString(16).padStart(2, '0')).join('');
-                const totalFrames = 1 + Math.max(1, Math.ceil(fileToEncrypt.size / (1024 * 1024)));
-                let frameIndex = 0;
+                const formData = new FormData();
+                formData.append('file', encryptedBlob, displayFileName);
 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/api/v2/upload', true);
+                xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+                xhr.setRequestHeader('X-Original-Name', originalNameB64);
+                xhr.setRequestHeader('X-Mime-Type', mimeType);
 
-                    const response = await fetch('/upload/stream', {
-                        method: 'POST',
-                        body: value,
-                        headers: {
-                            'Content-Type': 'application/octet-stream',
-                            'X-CSRF-Token': csrfToken,
-                            'X-Original-Name': originalNameB64,
-                            'X-Mime-Type': mimeType,
-                            'X-Upload-ID': uploadId,
-                            'X-Chunk-Index': frameIndex.toString(),
-                            'X-Total-Chunks': totalFrames.toString()
-                        }
-                    });
-
-                    if (!response.ok) {
-                        if (response.status === 413) {
-                            throw new Error('File exceeds the maximum server upload limit.');
-                        }
-                        throw new Error(`Upload failed with status ${response.status}`);
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const uploadPercent = Math.round((e.loaded / e.total) * 100);
+                        updateProgressText('upload-percent', uploadPercent);
+                        updateLinearProgress('upload-progress-bar', uploadPercent);
+                        updateUploadStage('Uploading encrypted file...', uploadPercent);
                     }
+                };
 
-                    const uploadPercent = Math.round(((frameIndex + 1) / totalFrames) * 100);
-                    updateProgressText('upload-percent', uploadPercent);
-                    updateLinearProgress('upload-progress-bar', uploadPercent);
-                    updateUploadStage('Uploading encrypted file...', uploadPercent);
-
-                    if (frameIndex === totalFrames - 1) {
-                        const payload = await response.json();
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        const payload = JSON.parse(xhr.responseText);
                         if (payload.status !== 'success') {
-                            throw new Error(payload.error || 'Upload failed');
+                            uploadInProgress = false;
+                            restoreDropzoneState();
+                            showToast(payload.error || 'Upload failed', 'error');
+                            return;
                         }
 
                         setUploadStep('link');
@@ -690,10 +634,24 @@ const ObsidianSecure = (() => {
                         fileInput.value = '';
                         restoreDropzoneState();
                         uploadInProgress = false;
+                    } else {
+                        if (xhr.status === 413) {
+                            showToast('File exceeds the maximum server upload limit.', 'error');
+                        } else {
+                            showToast(`Upload failed with status ${xhr.status}`, 'error');
+                        }
+                        uploadInProgress = false;
+                        restoreDropzoneState();
                     }
+                };
 
-                    frameIndex += 1;
-                }
+                xhr.onerror = () => {
+                    uploadInProgress = false;
+                    restoreDropzoneState();
+                    showToast('Network error during upload', 'error');
+                };
+
+                xhr.send(formData);
             } catch (error) {
                 uploadInProgress = false;
                 restoreDropzoneState();
@@ -842,7 +800,7 @@ const ObsidianSecure = (() => {
 
         try {
             const key = await importKey(keyB64);
-            const response = await fetch(`/get/${filename}`);
+            const response = await fetch(`/api/v2/get/${filename}`);
 
             if (!response.ok) {
                 showDownloadError(response.status === 404 ? 'This file has expired or been removed.' : 'Unable to retrieve the file. Please try again.');
@@ -851,60 +809,18 @@ const ObsidianSecure = (() => {
                 return;
             }
 
-            async function runBlobFallback() {
-                const encryptedBlob = await response.blob();
-                const plainBlob = await decryptFileAuto(encryptedBlob, key, mimeType);
-                const url = URL.createObjectURL(plainBlob);
-                const anchor = document.createElement('a');
-                anchor.href = url;
-                anchor.download = button.dataset.displayName || filename;
-                anchor.click();
-                setTimeout(() => URL.revokeObjectURL(url), 60000);
-            }
-
-            let useFallback = true;
-            if ('showSaveFilePicker' in window) {
-                const saveName = button.dataset.displayName || filename;
-                let fileHandle;
-                try {
-                    const pickerOptions = { suggestedName: saveName };
-                    if (mimeType && mimeType !== 'application/octet-stream' && saveName.includes('.')) {
-                        const ext = '.' + saveName.split('.').pop().toLowerCase();
-                        pickerOptions.types = [{
-                            description: `${ext.slice(1).toUpperCase()} File`,
-                            accept: {
-                                [mimeType]: [ext]
-                            }
-                        }];
-                    }
-                    fileHandle = await window.showSaveFilePicker(pickerOptions);
-                    useFallback = false;
-                } catch (error) {
-                    if (error.name === 'AbortError') {
-                        button.innerHTML = originalHtml;
-                        button.disabled = false;
-                        return;
-                    }
-                    console.warn('showSaveFilePicker failed, falling back to Blob download:', error);
-                }
-
-                if (!useFallback) {
-                    try {
-                        const writable = await fileHandle.createWritable();
-                        await decryptStreamToStream(response.body, writable, key);
-                    } catch (error) {
-                        console.warn('Writing stream failed, falling back to Blob download:', error);
-                        useFallback = true;
-                    }
-                }
-            }
-
-            if (useFallback) {
-                await runBlobFallback();
-            }
+            const encryptedBlob = await response.blob();
+            const plainBlob = await decryptFileAuto(encryptedBlob, key, mimeType);
+            const url = URL.createObjectURL(plainBlob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = button.dataset.displayName || filename;
+            anchor.click();
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
 
             button.innerHTML = '<span class="material-symbols-outlined text-[20px]" aria-hidden="true">check_circle</span> Download complete';
-        } catch (_) {
+        } catch (e) {
+            console.error(e);
             showDownloadError('Decryption failed. The link may be incomplete or the file may be corrupted.');
             button.innerHTML = originalHtml;
             button.disabled = false;

@@ -22,9 +22,9 @@
                     <span class="w-1 h-1 bg-sage rounded-full"></span>
                     <span>Encrypted Locally</span>
                 </div>
-                <div class="flex items-center gap-1.5 px-2.5 py-1 border border-archival-border bg-archival-soft rounded-md" title="Large encrypted uploads are supported through the streaming upload flow.">
+                <div class="flex items-center gap-1.5 px-2.5 py-1 border border-archival-border bg-archival-soft rounded-md" title="Up to 100 MB encrypted uploads are supported.">
                     <span class="w-1 h-1 bg-sage rounded-full"></span>
-                    <span>Large File Support</span>
+                    <span>Up to 100 MB Support</span>
                 </div>
                 <div class="flex items-center gap-1.5 px-2.5 py-1 border border-archival-border bg-archival-soft rounded-md" title="Links can expire automatically to reduce long-lived exposure.">
                     <span class="w-1 h-1 bg-sage rounded-full"></span>
@@ -40,12 +40,12 @@
                 <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="surface-card surface-card--primary">
-                        <div class="dropzone-area" id="dropzone" role="button" tabindex="0" aria-label="Select files to encrypt and upload">
+                        <div class="dropzone-area" id="dropzone" role="button" tabindex="0" aria-label="Select a file to encrypt and upload">
                             <span class="material-symbols-outlined text-[36px] text-sage mb-3.5 block" aria-hidden="true">upload_file</span>
-                            <h3 class="text-sm font-semibold text-ink-primary mb-1.5">Choose files to share</h3>
-                            <p class="text-xs text-ink-secondary">Click to browse files or drag and drop them here</p>
+                            <h3 class="text-sm font-semibold text-ink-primary mb-1.5">Choose a file to share</h3>
+                            <p class="text-xs text-ink-secondary">Click to browse or drag and drop — up to 100 MB</p>
                         </div>
-                        <input type="file" name="file" id="file-upload" class="hidden" aria-label="Choose file" multiple>
+                        <input type="file" name="file" id="file-upload" class="hidden" aria-label="Choose file" accept="*/*">
 
                         <div id="upload-progress" class="hidden mt-4 pt-4 border-t border-archival-border" role="status" aria-live="polite">
                             <div class="flex items-center justify-between gap-3 mb-3">
@@ -138,7 +138,7 @@
                         <span class="material-symbols-outlined text-[32px]" aria-hidden="true">lock</span>
                     </div>
                     <h4 class="text-xs font-semibold text-ink-primary tracking-wide mb-2">Select a file to share</h4>
-                    <p class="text-xs text-ink-secondary max-w-[300px] leading-relaxed mb-2">Drop files or click the choose button on the left to start sharing securely.</p>
+                    <p class="text-xs text-ink-secondary max-w-[300px] leading-relaxed mb-2">Drop a file or click the choose button on the left to start sharing securely.</p>
                     <p class="text-[10px] text-ink-muted max-w-[280px] leading-relaxed">Files are encrypted before leaving your browser. Access keys are stored only in your share links, never on our server.</p>
                 </div>
             </div>
@@ -482,7 +482,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/jszip.min.js"></script>
 <script src="/static/js/crypto.js"></script>
 {{ super() }}
 {% endblock %}

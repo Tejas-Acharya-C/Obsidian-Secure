@@ -125,10 +125,10 @@
             <div class="surface-card surface-card--secondary flex flex-col p-6 space-y-3 relative z-10">
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full bg-sage/10 text-sage flex items-center justify-center font-semibold text-sm">2</div>
-                    <h3 class="card-title-large text-ink-primary font-sans">Encrypted Streaming</h3>
+                    <h3 class="card-title-large text-ink-primary font-sans">Encrypted Uploads</h3>
                 </div>
                 <p class="text-xs text-ink-secondary leading-relaxed">
-                    Files are encrypted slice-by-slice before upload. Only the ciphertext payload is uploaded over TLS to the storage directory.
+                    Files are encrypted in-memory before upload. Only the ciphertext payload is uploaded over TLS to the storage directory.
                 </p>
             </div>
 
@@ -157,14 +157,14 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Highlight 1: Client Crypto Stream -->
+            <!-- Highlight 1: Client Crypto -->
             <div class="surface-card surface-card--secondary p-6 space-y-4">
                 <div class="flex items-center gap-2 border-b border-archival-border/40 pb-3">
                     <span class="material-symbols-outlined text-[20px] text-sage">memory</span>
-                    <h3 class="card-title-large text-ink-primary font-sans">Streaming Cryptography</h3>
+                    <h3 class="card-title-large text-ink-primary font-sans">Client Cryptography</h3>
                 </div>
                 <p class="text-xs text-ink-secondary leading-relaxed">
-                    Processes up to 5GB payloads directly in browser memory. Utilizes JavaScript Stream API chunking to encrypt large assets segment-by-segment, preventing browser tab crashes or memory leakage.
+                    Processes payloads up to 100 MB directly in browser memory. Utilizes AES-256-GCM single-request encryption to secure your assets without browser tab crashes or memory leakage.
                 </p>
             </div>
 

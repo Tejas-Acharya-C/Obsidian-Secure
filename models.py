@@ -25,6 +25,7 @@ class Share(db.Model):
     public_url = db.Column(db.String(512), nullable=False)
     
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    version = db.Column(db.Integer, nullable=False, default=2)
     
     # Relationships
     transfers = db.relationship('Transfer', backref='share', lazy=True, cascade="all, delete-orphan")

@@ -3,40 +3,79 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Security Pass](https://img.shields.io/badge/Security-Audited-brightgreen.svg)](#security-model)
 
-Obsidian Secure is a private, zero-knowledge file-sharing and secure message-sharing platform built to facilitate the confidential exchange of data over untrusted networks. Files are encrypted client-side in the browser before being transmitted, ensuring that the host server never possesses the plaintext data or the decryption keys.
+Obsidian Secure is a private, zero-knowledge file-sharing and secure messaging platform. Files are encrypted client-side in the browser using AES-256-GCM before being transmitted. The host server never possesses plaintext data or decryption keys.
 
 ---
 
 ## 3-Minute Recruiter Overview
 
 ### What the Project Does
-Obsidian Secure allows users to securely upload files and write message ciphers that can be shared via self-decrypting URLs. Files are stored on the server as encrypted binary payloads, and messages can be configured to self-destruct (burn) immediately upon being read by the recipient.
+Obsidian Secure allows users to securely upload files and write encrypted messages that are shared via self-decrypting URLs. Files are stored on the server as encrypted binary payloads. Messages can be configured to self-destruct after a single read.
 
-### Why it is Technically Interesting
-- **True Zero-Knowledge Architecture**: Plaintext data and encryption keys never touch the backend server. The cryptographic keys are appended to the sharing URL as a **URL fragment identifier (`#key`)**. Because fragment identifiers are handled exclusively by the browser and are never sent to the server in HTTP requests, the host operates in absolute blindness.
-- **Client-Side Stream Encryption**: Unlike naive applications that load entire files into memory before encrypting (which crashes on larger files), Obsidian Secure performs chunked client-side streaming and encryption using standard Web Crypto APIs, allowing the secure handling of large files directly within standard browser environments.
-- **Batched Write Mitigation**: To optimize database performance under heavy user loads (supporting over 1,000 active transfers), the app employs a thread-safe asynchronous metrics batcher (`MetricsBatcher`) in Python to queue and write telemetry data in bulk, mitigating disk bottlenecks.
+### Why It Is Technically Interesting
+
+- **True Zero-Knowledge Architecture**: Plaintext data and encryption keys never reach the backend. Keys are appended to the sharing URL as a **URL fragment (`#key=...`)**. Fragment identifiers are browser-only — they are never sent in HTTP requests — so the server operates with no access to the key.
+- **Single-Request AES-256-GCM Encryption**: Files up to 100 MB are encrypted entirely in browser memory using the Web Crypto API before upload. A single encrypted blob is transmitted in one request, eliminating the complexity and failure modes of chunked streaming protocols.
+- **MIME Type Preservation**: The browser's native MIME type is captured at upload time, stored in the database, and attached to the download page. Decrypted files are reconstructed with their correct MIME type so browsers recognise and open them properly (PDF, DOCX, PNG, etc.).
+- **Batched Write Mitigation**: A thread-safe async `MetricsBatcher` queues download telemetry and flushes in bulk, reducing disk I/O under concurrent load.
+- **Production Schema Migration**: A safe, additive migration layer runs at startup, detecting and applying missing columns to existing PostgreSQL tables without dropping data or requiring Alembic.
 
 ### Core Technologies
 - **Backend**: Python, Flask, SQLAlchemy ORM, Gunicorn, PostgreSQL (Production) / SQLite (Development)
-- **Frontend**: HTML5, Vanilla CSS3 (custom CSS design system with HSL variables), Vanilla JS, Web Crypto API
-- **Cryptography**: AES-GCM (128-bit/256-bit) client-side key generation and encryption, PBKDF2 (for user password hashing on the server)
+- **Frontend**: HTML5, Vanilla CSS3 (custom design system), Vanilla JS, Web Crypto API
+- **Cryptography**: AES-256-GCM client-side encryption, PBKDF2 server-side password hashing
 
 ---
 
 ## Features
 
-- **End-to-End Client-Side Encryption**: Web Crypto API-driven AES-GCM encryption.
-- **Zero-Knowledge Architecture**: The server does not store or see the decryption keys.
-- **Ephemeral Message Sharing**: Custom ciphers with a strict "burn-on-read" capability.
-- **Automatic Link Expiry**: Periodic background cleanup task auto-deletes expired shared files from disk and the database.
-- **Dynamic QR Code Sharing**: Instant, client-side SVG QR code generation for secure mobile transfer.
-- **Data Isolation**: Custom dashboard lists user-specific shares, setting changes, and notifications.
-- **Security Protections**: Session hardening, robust CSRF protection, rate limiting, and strict CSP (Content Security Policy).
+### Authentication
+- Username/password registration and login
+- Rate limiting on login (5 attempts per 15 minutes) and registration (5 per hour)
+- CSRF protection on all state-changing endpoints
+- Secure session cookies (HttpOnly, SameSite=Lax, Secure in production)
+
+### File Sharing (V2)
+- Single-file upload up to 100 MB
+- AES-256-GCM encryption entirely in-browser before upload
+- MIME type captured, stored, and used to reconstruct correct file type on download
+- Expiry: 1 hour (auto-revoke on) or 7 days (auto-revoke off)
+- Share links contain the decryption key in the URL fragment — never sent to the server
+- QR code generated automatically for each share link
+- Revoke access to any active share at any time
+- Active shares ledger with open counts and expiry countdowns
+- Background cleanup daemon removes expired files and orphaned disk entries every 5 minutes
+- Legacy V1 (OBSv2 chunk-framed) shares remain downloadable via auto-detecting decryptor
+
+### Secure Messaging
+- AES-256-GCM encrypted text notes created in-browser
+- Burn-after-read: message is deleted permanently after the first view
+- Optional multi-read mode
+- Sender alias snapshot preserved at creation time
+
+### Privacy & Access Controls
+- Ghost Mode: hide original filenames from recipients
+- Dynamic sender alias: recipients see a display name, never a raw user ID
+- No recipient registration required — anyone with the link can decrypt
+
+### Settings
+- Change password
+- Toggle auto-revoke (1h vs 7d expiry)
+- Toggle Ghost Mode
+- Set sender display name (alias)
+- Usage summary: active share count and encrypted storage used
+
+### Security Hardening
+- Strict Content Security Policy (CSP)
+- HTTP Strict Transport Security (HSTS) in production
+- X-Frame-Options: DENY
+- X-Content-Type-Options: nosniff
+- Referrer-Policy: no-referrer
+- ProxyFix middleware for correct client IP behind Render/Cloudflare
 
 ---
 
-## Security Model & Architecture
+## Security Model
 
 ```mermaid
 sequenceDiagram
@@ -45,55 +84,59 @@ sequenceDiagram
     participant Server as Flask Server (Backend)
     actor Recipient as Recipient (Browser)
 
-    Note over Sender: 1. Generate AES key & encrypt file locally
-    Sender->>Server: 2. POST Encrypted Payload (No key transmitted)
-    Server-->>Sender: 3. Return Share URL (/download/filename)
-    Note over Sender: 4. Append #key to URL (Client-only fragment)
-    Sender->>Recipient: 5. Share full URL (with #key fragment)
-    Recipient->>Server: 6. GET Payload (/get/filename)
-    Server-->>Recipient: 7. Deliver Encrypted Payload
-    Note over Recipient: 8. Decrypt payload locally using #key
+    Note over Sender: 1. Generate AES-256-GCM key in browser memory
+    Note over Sender: 2. Encrypt file locally — produces [IV][ciphertext]
+    Sender->>Server: 3. POST /api/v2/upload (encrypted blob, no key)
+    Server-->>Sender: 4. Return share URL (/download/filename)
+    Note over Sender: 5. Append #key=BASE64 to URL (browser-only fragment)
+    Sender->>Recipient: 6. Share full URL (with #key fragment)
+    Recipient->>Server: 7. GET /download/filename
+    Server-->>Recipient: 8. Render download page (no key involved)
+    Recipient->>Server: 9. Fetch /api/v2/get/filename
+    Server-->>Recipient: 10. Return encrypted blob
+    Note over Recipient: 11. Decrypt locally using #key fragment
 ```
 
-1. **Local Key Generation**: The browser generates a cryptographically secure random symmetric key.
-2. **Encryption**: The file/message is encrypted locally in the user's browser using AES-GCM.
-3. **Payload Transmission**: The encrypted ciphertext is sent to the server. The key is **not** included in the request payload, headers, or URL path.
-4. **Link Formulation**: The key is attached to the sharing link as a fragment (`#<key>`). This fragment is never sent to the server during HTTP requests.
-5. **Decryption on Retrieval**: When the recipient loads the link, the browser pulls the key from the fragment, downloads the encrypted payload from the server, and decrypts the file entirely client-side.
+1. **Local Key Generation**: The browser generates a cryptographically secure random 256-bit AES-GCM key.
+2. **In-Memory Encryption**: The file is read into an `ArrayBuffer` and encrypted in a single operation. A random 12-byte IV is prepended to the ciphertext.
+3. **Payload Transmission**: Only the encrypted blob is uploaded. The key is never included in any request.
+4. **Link Formulation**: The exported key is appended to the share URL as `#key=BASE64`. The fragment is never transmitted in HTTP requests.
+5. **Decryption on Retrieval**: The recipient's browser reads the key from the fragment, fetches the encrypted blob, extracts the IV, and decrypts locally using `crypto.subtle.decrypt`.
 
 ---
 
 ## Project Structure
 
 ```text
-├── app.py                     # Main application entry point, routing, and WSGI middleware
+├── app.py                     # Flask application, routes, background workers, schema migration
 ├── models.py                  # SQLAlchemy models (User, Share, Transfer, Cipher, UserSetting)
-├── pyrightconfig.json         # Static analysis type checker configuration
-├── render.yaml                # Render Infrastructure-as-Code (IaC) deployment configuration
-├── Procfile                   # Process file for production WSGI server execution
-├── runtime.txt                # Python runtime version definition
-├── requirements.txt           # Production dependencies (gunicorn, Flask, SQLAlchemy, etc.)
-├── templates/                 # Jinja2 HTML templates
-│   ├── base.html              # Core application layout and layout styling imports
-│   ├── dashboard.html         # User files dashboard, cipher generator, and settings portal
-│   ├── landing.html           # Recipient file download and decryption landing page
-│   ├── cipher_read.html       # Recipient message decryption and burn portal
-│   ├── login.html             # User login portal
-│   └── register.html          # User registration portal
-├── static/                    # Static assets
+├── render.yaml                # Render IaC configuration (web service + PostgreSQL + disk)
+├── Procfile                   # Gunicorn process definition
+├── runtime.txt                # Python 3.11.9 runtime pin
+├── requirements.txt           # Production dependencies
+├── ARCHITECTURE.md            # V2 architecture specification and sequence diagrams
+├── CHANGELOG.md               # Version history
+├── templates/
+│   ├── base.html              # Base layout, navigation, script includes
+│   ├── dashboard.html         # Files, messages, settings, and security pages
+│   ├── landing.html           # Recipient file download and decryption page
+│   ├── landing_page.html      # Public marketing / home page
+│   ├── cipher_read.html       # Recipient message decryption page
+│   ├── login.html             # Login page
+│   └── register.html          # Registration page
+├── static/
 │   ├── css/
-│   │   ├── styles.css         # Main application visual stylesheet
-│   │   └── utilities.css      # Core design system tokens, HSL palettes, and animations
+│   │   ├── styles.css         # Core design system stylesheet
+│   │   └── utilities.css      # Design tokens, layout utilities, responsive classes
 │   ├── js/
-│   │   ├── app.js             # Client-side streaming, chunked uploads, and UI logic
-│   │   ├── crypto.js          # Web Crypto wrapper (AES-GCM encryption & decryption helper)
-│   │   ├── qrcode.min.js      # Client-side QR code generation library
-│   │   └── jszip.min.js       # Client-side file bundling engine
-│   └── img/                   # Static UI assets and background graphics
-├── tests/                     # Test Suites
-│   ├── audit_regression.py    # Complete regression suite verifying auth, features, and XSS
-│   └── verify_hardening.py    # Target verification verifying security fixes and CSP headers
-└── shared_files/              # Upload folder for encrypted binary files (Git ignored)
+│   │   ├── app.js             # Upload orchestration, download flow, UI interactions
+│   │   ├── crypto.js          # Web Crypto API wrapper — AES-256-GCM encrypt/decrypt
+│   │   └── qrcode.min.js      # Client-side QR code generation
+│   └── img/                   # Logos and background graphics
+├── tests/
+│   ├── audit_regression.py    # Full regression suite (auth, uploads, security, XSS)
+│   └── verify_hardening.py    # Security hardening verification
+└── shared_files/              # Encrypted upload storage (not committed)
 ```
 
 ---
@@ -101,88 +144,71 @@ sequenceDiagram
 ## Installation & Local Development
 
 ### Prerequisites
-- Python 3.11+ installed locally.
+- Python 3.11+
 
-### Setup Steps
-1. **Clone the Repository**:
+### Setup
+
+1. **Clone the repository**:
    ```bash
    git clone https://github.com/Tejas-Acharya-C/Obsidian-Secure.git
    cd Obsidian-Secure
    ```
 
-2. **Configure Environment Variables**:
-   Copy the example configuration file and customize the variables if necessary.
-   ```bash
-   cp .env.example .env
-   ```
-   *For local development, the default SQLite configuration in `.env.example` works automatically.*
-
-3. **Install Dependencies**:
+2. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Initialize Database**:
-   The application initializes the SQLite database (`qr_app.db`) on its initial launch.
-
-5. **Run the Development Server**:
+3. **Run the development server**:
    ```bash
    python app.py
    ```
-   The application will be accessible locally at `http://127.0.0.1:5000`.
+   Accessible at `http://127.0.0.1:5000`.
+
+The application initialises a local SQLite database (`qr_app.db`) and creates all tables automatically on first run. No additional setup is required for local development.
 
 ---
 
 ## Deployment
 
-Obsidian Secure is fully configured for production deployment using Gunicorn as the WSGI HTTP server.
-
 ### Deploying to Render
-1. Create a new Web Service on Render linked to your repository.
-2. Render will automatically detect the configuration in `render.yaml`.
-3. The configuration will provision:
-   - A PostgreSQL database (`obsidian-db`).
-   - A persistent disk storage mount (`/var/lib/obsidian/data`) to store the encrypted payloads.
-   - Appropriate environment variables (`SECRET_KEY`, `RENDER=1`, `DATABASE_URL`).
 
----
+The repository includes a complete `render.yaml` that provisions:
+- A Python web service running Gunicorn
+- A PostgreSQL database (`obsidian-db`, free plan)
+- A persistent disk at `/var/lib/obsidian/data` (paid plan required for disk)
 
-## Environment Variables
+**Required environment variables** (set in the Render dashboard):
 
-The application reads configurations from environment variables. A template is provided in [.env.example](.env.example):
+| Variable | Description | Example |
+|---|---|---|
+| `SECRET_KEY` | Persistent session signing key | `openssl rand -hex 32` output |
+| `DATABASE_URL` | PostgreSQL connection string | Auto-injected from `obsidian-db` |
+| `RENDER` | Production flag | `1` |
+| `PUBLIC_BASE_URL` | Canonical public URL of the service | `https://obsidian-secure-ootw.onrender.com` |
+| `PERSISTENT_DISK_PATH` | Mount path for uploaded files | `/var/lib/obsidian/data` |
 
-| Variable | Description | Default Value |
-| :--- | :--- | :--- |
-| `SECRET_KEY` | Highly secure random key for session signing and CSRF tokens | Dynamic random 32-byte hex |
-| `DATABASE_URL` | SQLAlchemy-compatible database connection string | `sqlite:///qr_app.db` |
-| `RENDER` | Production flag (forces HSTS, secure cookies, and production URL formatting) | `false` |
-| `PERSISTENT_DISK_PATH` | Path on the host filesystem where uploads are written | `./shared_files` |
+> **Important**: `SECRET_KEY` must be a fixed, persistent value. If it is absent or changes between restarts, all existing sessions will be invalidated and users will see a 500 error on `/login` and `/register`. Set it once and do not regenerate it.
+
+> **Free tier note**: Render's persistent disk requires a paid plan. On the free tier, uploaded files are stored on the container's ephemeral filesystem and will be lost on every redeploy or after 15 minutes of inactivity. Use share links promptly.
 
 ---
 
 ## Known Limitations
 
-- **Large Mobile Downloads**: Since decryption happens entirely client-side, the browser must read the entire encrypted payload into memory/blob storage before saving. Mobile devices with constrained RAM may encounter browser tab crashes when downloading files larger than 1GB.
-- **Browser Memory Limitations**: Clients with low physical memory might experience tab crashes during the client-side encryption of files exceeding 2GB.
-- **In-App Browser URL Handling**: Some in-app browsers (e.g., inside WeChat, Instagram, or Facebook) strip URL fragments (everything after `#`) when opening links, which removes the decryption key. Users must open links in standard external browsers (Chrome, Safari, Firefox).
-- **QR Scanning Camera Quality**: Recipient QR decoding depends on the camera quality of the device scanning the code. Highly complex keys in long URLs generate high-density QR patterns that may require adequate lighting and modern focus capabilities to scan.
-
----
-
-## Screenshots
-
-* Obsidian Secure Dashboard
-![Dashboard](/static/img/landing-bg.png)
-*(A visual depiction of the dark-mode glassmorphic theme used across the platform)*
+- **100 MB file limit**: AES-256-GCM encryption operates on the full file in browser memory. Files larger than 100 MB may cause tab crashes on memory-constrained devices, particularly mobile browsers. The limit is enforced client-side.
+- **Ephemeral storage on free tier**: Without a persistent disk, files do not survive Render service restarts or the 15-minute inactivity sleep. See the deployment section above.
+- **In-app browser URL fragment stripping**: Some in-app browsers (WeChat, Instagram, Facebook) strip URL fragments (`#key=...`) when opening links, which removes the decryption key. Users must open share links in a standard external browser (Chrome, Safari, Firefox).
+- **Single-file uploads**: The V2 architecture uploads one file per share. Multi-file sharing is not supported in the current version.
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 
 ## Security Disclaimer
 
-This project is designed for secure personal and educational file sharing. Please audit the cryptographic implementation independently before using it to protect high-risk production workloads or sensitive enterprise assets.
+This project is designed for secure personal and educational file sharing. Audit the cryptographic implementation independently before using it to protect high-risk or enterprise-critical assets.

@@ -133,6 +133,8 @@ try:
             ('cipher', 'sender_alias', 'VARCHAR(255)'),
             # Share.mime_type — added for MIME type preservation
             ('share', 'mime_type', 'VARCHAR(255)'),
+            # Share.version — added for V2 File Sharing architecture
+            ('share', 'version', 'INTEGER DEFAULT 2'),
         ]
 
         is_postgres = 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'].lower()
@@ -958,7 +960,107 @@ def upload_file_stream():
 @app.route('/upload', methods=['POST'])
 @login_required
 def upload_file():
-    return jsonify({"error": "Endpoint deprecated. Use OBSv2 /upload/stream"}), 410
+    return jsonify({"error": "Endpoint deprecated. Use OBSv2 /upload/stream or /api/v2/upload"}), 410
+
+@app.route('/api/v2/upload', methods=['POST'])
+@login_required
+def upload_file_v2():
+    """Accept single encrypted Blob upload (V2 architecture) up to 100MB.
+    Headers: X-CSRF-Token, X-Original-Name, X-Mime-Type
+    """
+    token = request.headers.get('X-CSRF-Token')
+    if not token or token != session.get('csrf_token'):
+        return jsonify({'error': 'CSRF validation failed'}), 403
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part in request'}), 400
+        
+    file_obj = request.files['file']
+    if file_obj.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    # Read original name
+    original_name_b64 = request.headers.get('X-Original-Name', '')
+    try:
+        original_name = base64.b64decode(original_name_b64).decode('utf-8', errors='replace')
+    except Exception:
+        original_name = 'unnamed_file'
+    safe_name = secure_filename(original_name) or 'unnamed_file'
+    
+    mime_type = request.headers.get('X-Mime-Type', 'application/octet-stream')
+    
+    upload_id = secrets.token_hex(8)
+    filename = f"{upload_id}_{safe_name}"
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    
+    # Write entire file at once
+    with heavy_task_semaphore:
+        file_obj.save(file_path)
+    
+    # Validate write
+    if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+        return jsonify({'error': 'Upload failed: no data saved'}), 400
+    
+    is_auto_revoke = get_user_setting(current_user.id, 'auto_revoke') == 'true'
+    upload_time = datetime.utcnow()
+    expiry_delta = timedelta(hours=1) if is_auto_revoke else timedelta(days=7)
+    expiry_time = upload_time + expiry_delta
+    
+    base_url = PUBLIC_BASE_URL if PUBLIC_BASE_URL else f"{request.scheme}://{request.host}"
+    share_url = f"{base_url}/download/{filename}"
+    
+    new_share = Share(
+        filename=filename,
+        original_name=original_name,
+        mime_type=mime_type,
+        upload_time=upload_time,
+        expiry_time=expiry_time,
+        public_url=share_url,
+        user_id=current_user.id,
+        version=2
+    )
+    db.session.add(new_share)
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'redirect': url_for('dashboard'),
+        'public_url': share_url,
+        'share': {
+            'original_name': serialize_share(new_share, is_ghost=get_user_setting(current_user.id, 'ghost_mode') == 'true')['original_name'],
+            'public_url': share_url,
+            'download_count': 0,
+            'upload_time': upload_time.isoformat() + 'Z',
+            'expiry_time': expiry_time.isoformat() + 'Z',
+            'last_accessed_at': None
+        }
+    })
+
+@app.route('/api/v2/get/<filename>')
+def get_file_v2(filename):
+    """Serve the complete encrypted Blob (V2 architecture)."""
+    share = Share.query.filter_by(filename=filename).first()
+    if not share:
+        return "File not found", 404
+    
+    # Enforce expiry
+    if share.expiry_time and datetime.utcnow() > share.expiry_time:
+        return "File expired", 410
+
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if not os.path.exists(file_path):
+        app.logger.warning(f"[get_file_v2] Physical file missing for share id={share.id} filename={filename}")
+        return "File is no longer available", 410
+    
+    # LOG ASYNC METRICS
+    metrics_batcher.log_download(share.id, filename)
+    
+    return send_from_directory(
+        app.config['UPLOAD_FOLDER'], 
+        filename, 
+        as_attachment=True, 
+        download_name=share.original_name
+    )
 
 # --- STARTUP ---
 
