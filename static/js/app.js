@@ -627,6 +627,7 @@ const ObsidianSecure = (() => {
 
                 const csrfToken = getCSRFToken();
                 const originalNameB64 = btoa(unescape(encodeURIComponent(displayFileName)));
+                const mimeType = fileToEncrypt.type || 'application/octet-stream';
                 const encryptedStream = encryptFileToStream(fileToEncrypt, key, onEncryptProgress);
                 const reader = encryptedStream.getReader();
 
@@ -648,6 +649,7 @@ const ObsidianSecure = (() => {
                             'Content-Type': 'application/octet-stream',
                             'X-CSRF-Token': csrfToken,
                             'X-Original-Name': originalNameB64,
+                            'X-Mime-Type': mimeType,
                             'X-Upload-ID': uploadId,
                             'X-Chunk-Index': frameIndex.toString(),
                             'X-Total-Chunks': totalFrames.toString()
@@ -829,6 +831,7 @@ const ObsidianSecure = (() => {
 
         const filename = button.dataset.filename;
         const keyB64 = getKeyFromFragment();
+        const mimeType = button.dataset.mimetype || 'application/octet-stream';
 
         if (!keyB64) {
             showDownloadError('The decryption key is missing from the URL. Make sure you have the complete link.');
@@ -850,7 +853,7 @@ const ObsidianSecure = (() => {
 
             async function runBlobFallback() {
                 const encryptedBlob = await response.blob();
-                const plainBlob = await decryptFileAuto(encryptedBlob, key);
+                const plainBlob = await decryptFileAuto(encryptedBlob, key, mimeType);
                 const url = URL.createObjectURL(plainBlob);
                 const anchor = document.createElement('a');
                 anchor.href = url;

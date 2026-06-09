@@ -8,6 +8,7 @@ import base64
 import secrets
 import threading
 import time
+import mimetypes
 from functools import wraps
 from flask import Flask, render_template, request, send_from_directory, redirect, url_for, g, session, jsonify
 from datetime import datetime, timedelta
@@ -130,6 +131,8 @@ try:
         REQUIRED_COLUMNS = [
             # Cipher.sender_alias — added after initial production deploy
             ('cipher', 'sender_alias', 'VARCHAR(255)'),
+            # Share.mime_type — added for MIME type preservation
+            ('share', 'mime_type', 'VARCHAR(255)'),
         ]
 
         is_postgres = 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'].lower()
@@ -856,9 +859,16 @@ def landing_page(filename):
     file_unavailable = not file_exists
 
     display_name = f"ENCRYPTED_PAYLOAD.bin" if is_ghost else share.original_name
+    
+    # MIME Type Preservation (Fallback to guess for legacy shares)
+    mime_type = share.mime_type
+    if not mime_type:
+        mime_type = mimetypes.guess_type(share.original_name)[0] or 'application/octet-stream'
+
     return render_template('landing.html', filename=filename, display_name=display_name,
                            alias=alias, expired=False, file_size=file_size,
-                           expiry_time=share.expiry_time, file_unavailable=file_unavailable)
+                           expiry_time=share.expiry_time, file_unavailable=file_unavailable,
+                           mime_type=mime_type)
 
 @app.route('/upload/stream', methods=['POST'])
 @login_required
@@ -886,6 +896,8 @@ def upload_file_stream():
     except Exception:
         original_name = 'unnamed_file'
     safe_name = secure_filename(original_name) or 'unnamed_file'
+    
+    mime_type = request.headers.get('X-Mime-Type', 'application/octet-stream')
     
     filename = f"{upload_id}_{safe_name}"
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -918,6 +930,7 @@ def upload_file_stream():
         new_share = Share(
             filename=filename,
             original_name=original_name,
+            mime_type=mime_type,
             upload_time=upload_time,
             expiry_time=expiry_time,
             public_url=share_url,

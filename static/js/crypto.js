@@ -60,7 +60,7 @@ async function encryptFile(file, key) {
   return new Blob([combined], { type: 'application/octet-stream' });
 }
 
-async function decryptFile(encryptedBlob, key) {
+async function decryptFile(encryptedBlob, key, mimeType = 'application/octet-stream') {
   // Read encrypted blob to ArrayBuffer
   const buffer = await encryptedBlob.arrayBuffer();
   
@@ -77,7 +77,7 @@ async function decryptFile(encryptedBlob, key) {
     ciphertext
   );
   
-  return new Blob([decryptedData]);
+  return new Blob([decryptedData], { type: mimeType });
 }
 
 // ===== TEXT ENCRYPTION/DECRYPTION =====
@@ -312,7 +312,7 @@ async function encryptFileStreaming(file, key, onProgress) {
 
 // ===== OBSv2 CHUNKED FILE DECRYPTION =====
 
-async function decryptFileChunked(buffer, key) {
+async function decryptFileChunked(buffer, key, mimeType = 'application/octet-stream') {
   var data = new Uint8Array(buffer);
   var header = parseOBSv2Header(data);
 
@@ -362,12 +362,12 @@ async function decryptFileChunked(buffer, key) {
     throw new Error('Chunk count mismatch: expected ' + header.totalChunks + ', got ' + chunkIndex);
   }
 
-  return new Blob(decryptedParts);
+  return new Blob(decryptedParts, { type: mimeType });
 }
 
 // ===== AUTO-DETECTING DECRYPTOR (v1 legacy / v2 streaming) =====
 
-async function decryptFileAuto(encryptedBlob, key) {
+async function decryptFileAuto(encryptedBlob, key, mimeType = 'application/octet-stream') {
   var buffer = await encryptedBlob.arrayBuffer();
 
   // Detect OBSv2 format via magic bytes "OBS2" (0x4F 0x42 0x53 0x32)
@@ -375,7 +375,7 @@ async function decryptFileAuto(encryptedBlob, key) {
     var magic = new Uint8Array(buffer, 0, 4);
     if (magic[0] === 0x4F && magic[1] === 0x42 &&
         magic[2] === 0x53 && magic[3] === 0x32) {
-      return decryptFileChunked(buffer, key);
+      return decryptFileChunked(buffer, key, mimeType);
     }
   }
 
@@ -387,7 +387,7 @@ async function decryptFileAuto(encryptedBlob, key) {
     key,
     ciphertext
   );
-  return new Blob([decryptedData]);
+  return new Blob([decryptedData], { type: mimeType });
 }
 
 // ===== OBSv2 PHASE 2: TRUE STREAMING INTERFACES (5GB SUPPORT) =====

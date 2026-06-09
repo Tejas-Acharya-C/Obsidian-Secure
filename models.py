@@ -18,6 +18,7 @@ class Share(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(255), nullable=False)
     original_name = db.Column(db.String(255), nullable=False)
+    mime_type = db.Column(db.String(255), nullable=True)
     upload_time = db.Column(db.DateTime, default=datetime.utcnow)
     expiry_time = db.Column(db.DateTime, nullable=False)
     download_count = db.Column(db.Integer, default=0)

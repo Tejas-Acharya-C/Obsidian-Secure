@@ -84,7 +84,7 @@
             </p>
         </div>
 
-        <button type="button" id="download-btn" data-filename="{{ filename }}" data-display-name="{{ display_name if display_name else filename }}" class="btn-primary w-full py-3 mb-6">
+        <button type="button" id="download-btn" data-filename="{{ filename }}" data-display-name="{{ display_name if display_name else filename }}" data-mimetype="{{ mime_type }}" class="btn-primary w-full py-3 mb-6">
             <span class="material-symbols-outlined text-[20px]" aria-hidden="true">download</span>
             Download &amp; Decrypt
         </button>
