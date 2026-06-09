@@ -46,6 +46,14 @@
             <p class="text-xs text-ink-secondary/60 mb-4">Secure files are automatically cleaned up after their expiry period.</p>
             <p class="text-xs text-ink-secondary/80 border-t border-archival-border/20 pt-4">What you can do: Request the sender to generate and share a new link.</p>
         </div>
+        {% elif file_unavailable %}
+        <div class="py-8 text-center" role="status">
+            <span class="material-symbols-outlined text-4xl text-ink-muted/40 mb-4 block" aria-hidden="true">cloud_off</span>
+            <h3 class="text-lg font-medium text-ink-primary mb-2">File Temporarily Unavailable</h3>
+            <p class="text-sm text-ink-secondary mb-1">This file could not be retrieved from storage.</p>
+            <p class="text-xs text-ink-secondary/60 mb-4">This can occur after a service update or scheduled maintenance. The link record is still valid.</p>
+            <p class="text-xs text-ink-secondary/80 border-t border-archival-border/20 pt-4">What you can do: Ask the sender to re-upload and share a new link.</p>
+        </div>
         {% else %}
 
         {% set ext = filename.split('.')[-1].lower() if '.' in filename else '' %}

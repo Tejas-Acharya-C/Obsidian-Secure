@@ -89,8 +89,12 @@ try:
         SESSION_COOKIE_SECURE=True if os.environ.get('RENDER') else False
     )
     
-    # Render Global URL
-    RENDER_DOMAIN = "obsidian-secure.onrender.com"
+    # Public base URL — set this in the Render environment to match the actual
+    # service URL (e.g. https://obsidian-secure-ootw.onrender.com).
+    # Falls back to deriving the base URL from the incoming request at link
+    # generation time, which is correct for local development.
+    PUBLIC_BASE_URL = os.environ.get('PUBLIC_BASE_URL', '').rstrip('/')
+
     heavy_task_semaphore = threading.Semaphore(3)
     
     # Initial Setup Logic
@@ -652,7 +656,7 @@ def create_cipher():
     content = html_lib.escape(content)
     public_id = secrets.token_urlsafe(16)
     
-    base_url = f"https://{RENDER_DOMAIN}" if os.environ.get('RENDER') else f"{request.scheme}://{request.host}"
+    base_url = PUBLIC_BASE_URL if PUBLIC_BASE_URL else f"{request.scheme}://{request.host}"
     decrypt_url = f"{base_url}/decrypt/{public_id}"
     
     # Capture current user's alias snapshot
@@ -786,6 +790,13 @@ def get_file(filename):
     # Enforce expiry at access time — never serve expired files
     if share.expiry_time and datetime.utcnow() > share.expiry_time:
         return "File expired", 410
+
+    # Guard against missing physical file (ephemeral storage reset on Render free tier
+    # or any other condition where the DB record outlives the file on disk).
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if not os.path.exists(file_path):
+        app.logger.warning(f"[get_file] Physical file missing for share id={share.id} filename={filename}")
+        return "File is no longer available", 410
     
     # LOG ASYNC METRICS
     metrics_batcher.log_download(share.id, filename)
@@ -821,7 +832,7 @@ def landing_page(filename):
     # Verify share exists and enforce expiry at access time
     share = Share.query.filter_by(filename=filename).first()
     if not share or (share.expiry_time and datetime.utcnow() > share.expiry_time):
-        return render_template('landing.html', filename=filename, display_name=filename, alias=None, expired=True)
+        return render_template('landing.html', filename=filename, display_name=filename, alias=None, expired=True, file_unavailable=False)
     
     is_ghost = False
     alias = 'OBSIDIAN_NODE'
@@ -836,10 +847,18 @@ def landing_page(filename):
         pass
     
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
-        
+    file_exists = os.path.exists(file_path)
+    file_size = os.path.getsize(file_path) if file_exists else 0
+
+    # File record is valid and not expired, but the physical file is missing.
+    # This happens on Render free tier when storage is reset after a redeploy
+    # or after the service wakes from sleep. Show a clear, professional message.
+    file_unavailable = not file_exists
+
     display_name = f"ENCRYPTED_PAYLOAD.bin" if is_ghost else share.original_name
-    return render_template('landing.html', filename=filename, display_name=display_name, alias=alias, expired=False, file_size=file_size, expiry_time=share.expiry_time)
+    return render_template('landing.html', filename=filename, display_name=display_name,
+                           alias=alias, expired=False, file_size=file_size,
+                           expiry_time=share.expiry_time, file_unavailable=file_unavailable)
 
 @app.route('/upload/stream', methods=['POST'])
 @login_required
@@ -893,7 +912,7 @@ def upload_file_stream():
         expiry_delta = timedelta(hours=1) if is_auto_revoke else timedelta(days=7)
         expiry_time = upload_time + expiry_delta
         
-        base_url = f"https://{RENDER_DOMAIN}" if os.environ.get('RENDER') else f"{request.scheme}://{request.host}"
+        base_url = PUBLIC_BASE_URL if PUBLIC_BASE_URL else f"{request.scheme}://{request.host}"
         share_url = f"{base_url}/download/{filename}"
         
         new_share = Share(
