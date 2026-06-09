@@ -96,8 +96,91 @@ try:
     # Initial Setup Logic
     def init_enterprise_db():
         with app.app_context():
+            # Step 1: Create any tables that are entirely missing.
+            # db.create_all() is safe to call on an existing DB — it only creates
+            # tables that do not yet exist and never modifies existing ones.
             db.create_all()
-    
+
+            # Step 2: Run column-level migrations for tables that already exist
+            # in production but are missing columns added in later model revisions.
+            # This handles schema drift between db.create_all() deployments.
+            run_schema_migrations()
+
+    def run_schema_migrations():
+        """Production-safe column migration layer.
+
+        db.create_all() creates missing tables but never alters existing ones.
+        This function detects and adds individual missing columns using raw SQL
+        so that existing production databases are brought in sync with models.py
+        without any data loss or table drops.
+
+        Supports both SQLite (development) and PostgreSQL (production on Render).
+        Each ALTER is isolated in its own transaction so a single failure does not
+        block the remaining migrations.
+        """
+        from sqlalchemy import text, inspect
+
+        # Columns to ensure exist: (table_name, column_name, column_definition)
+        # Add new entries here whenever a nullable or defaulted column is added
+        # to an existing model after the initial production deployment.
+        REQUIRED_COLUMNS = [
+            # Cipher.sender_alias — added after initial production deploy
+            ('cipher', 'sender_alias', 'VARCHAR(255)'),
+        ]
+
+        is_postgres = 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI'].lower()
+        is_sqlite = 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI'].lower()
+
+        with db.engine.connect() as conn:
+            for table_name, column_name, column_type in REQUIRED_COLUMNS:
+                try:
+                    column_exists = False
+
+                    if is_postgres:
+                        # PostgreSQL: query information_schema for the column
+                        result = conn.execute(text(
+                            "SELECT COUNT(*) FROM information_schema.columns "
+                            "WHERE table_name = :t AND column_name = :c"
+                        ), {'t': table_name, 'c': column_name})
+                        column_exists = result.scalar() > 0
+
+                    elif is_sqlite:
+                        # SQLite: use PRAGMA table_info to list columns
+                        result = conn.execute(text(f"PRAGMA table_info({table_name})"))
+                        columns = [row[1] for row in result.fetchall()]
+                        column_exists = column_name in columns
+
+                    if not column_exists:
+                        # Add the missing column. NULL is safe because all added
+                        # columns are nullable — no default is required.
+                        conn.execute(text(
+                            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+                        ))
+                        conn.commit()
+                        print(
+                            f"[schema_migration] Added missing column: "
+                            f"{table_name}.{column_name} ({column_type})",
+                            flush=True
+                        )
+                    else:
+                        # Column already present — nothing to do
+                        pass
+
+                except Exception as migration_err:
+                    # Log but do not crash startup. If the column already exists
+                    # under a different type or the table does not exist yet,
+                    # db.create_all() above will have handled the table case,
+                    # and a type mismatch is not actionable here.
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                    print(
+                        f"[schema_migration] Warning — could not migrate "
+                        f"{table_name}.{column_name}: {migration_err}",
+                        flush=True
+                    )
+
     init_enterprise_db()
 except Exception as e:
     import sys
@@ -194,7 +277,8 @@ def login_page():
         
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password_hash, password):
-            login_user(user, remember=True)
+            remember = request.form.get('remember') == 'true'
+            login_user(user, remember=remember)
             # Reset attempts
             if attempt:
                 db.session.delete(attempt)
@@ -218,7 +302,7 @@ def register_page():
 
     ip = request.remote_addr
     error = request.args.get('error')
-    if error and error not in ['FIELDS_REQUIRED', 'USER_EXISTS', 'INVALID_USERNAME', 'INVALID_PASSWORD', 'RATE_LIMIT_EXCEEDED', 'CSRF_VALIDATION_FAILED']:
+    if error and error not in ['FIELDS_REQUIRED', 'USER_EXISTS', 'INVALID_USERNAME', 'INVALID_PASSWORD', 'RATE_LIMIT_EXCEEDED', 'CSRF_VALIDATION_FAILED', 'PASSWORDS_DONT_MATCH']:
         app.logger.error(f"Unknown registration error code: {error}")
         error = None
 
@@ -247,9 +331,13 @@ def register_page():
 
         username = request.form.get('username')
         password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
         
-        if not username or not password:
+        if not username or not password or not confirm_password:
             return render_template('register.html', error='FIELDS_REQUIRED')
+            
+        if password != confirm_password:
+            return render_template('register.html', error='PASSWORDS_DONT_MATCH')
             
         if not re.match(r'^[A-Za-z0-9_]+$', username) or len(username) > 50:
             return render_template('register.html', error='INVALID_USERNAME')
