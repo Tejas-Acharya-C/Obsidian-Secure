@@ -34,7 +34,7 @@ def test_robots_txt_rules(client):
     assert 'Sitemap:' in text
 
 def test_sitemap_xml_format(client):
-    """Verifies sitemap.xml structure and public URL inclusion."""
+    """Verifies sitemap.xml structure, inclusion of indexable public URLs (/ and /privacy), and exclusion of private routes."""
     res = client.get('/sitemap.xml')
     assert res.status_code == 200
     assert 'xml' in res.headers.get('Content-Type', '')
@@ -42,7 +42,11 @@ def test_sitemap_xml_format(client):
     xml_str = res.data.decode('utf-8')
     root = ET.fromstring(xml_str)
     assert root.tag.endswith('urlset')
+    assert '<loc>http://localhost/</loc>' in xml_str or '<loc>https://' in xml_str
+    assert '/privacy</loc>' in xml_str
     assert '/dashboard' not in xml_str
+    assert '/login' not in xml_str
+    assert '/register' not in xml_str
 
 def test_private_routes_noindex_protection(client):
     """Verifies that recipient share pages and unauthenticated error states enforce noindex, nofollow."""

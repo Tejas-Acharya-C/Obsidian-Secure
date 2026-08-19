@@ -683,6 +683,11 @@ def sitemap_xml():
         '    <changefreq>weekly</changefreq>\n'
         '    <priority>1.0</priority>\n'
         '  </url>\n'
+        '  <url>\n'
+        f'    <loc>{base_url}/privacy</loc>\n'
+        '    <changefreq>monthly</changefreq>\n'
+        '    <priority>0.5</priority>\n'
+        '  </url>\n'
         '</urlset>'
     )
     return app.response_class(content, mimetype='application/xml')
