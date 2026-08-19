@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}Obsidian Secure | Secure File Sharing{% endblock %}
+{% block meta_description %}Obsidian Secure provides browser-side AES-256-GCM encrypted file sharing and self-destructing messages with zero server-side key custody.{% endblock %}
+{% block meta_robots %}<meta name="robots" content="index, follow">{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ public_base_url }}/">{% endblock %}
+{% block og_url %}{{ public_base_url }}/{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Obsidian Secure",
+  "operatingSystem": "All",
+  "applicationCategory": "SecurityApplication",
+  "url": "{{ public_base_url }}/",
+  "description": "Browser-side client-encrypted file sharing and self-destructing secure messaging platform with zero server-side key custody."
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="landing-wrapper">
+    <!-- Active Background Layer for Parallax Atmosphere -->
+    <div class="landing-bg-layer" aria-hidden="true"></div>
+
+    <!-- Section 1: Hero & Demo Card Rebuild -->
+    <div class="landing-page-hero">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+            <!-- Left side: Headline, Subheading, Buttons, Trust row -->
+            <div class="lg:col-span-7 space-y-6">
+                <div class="max-w-2xl space-y-6">
+                    <h1 class="hero-headline text-ink-primary font-sans leading-tight">
+                        Share files securely.
+                    </h1>
+                    <p class="hero-subheading font-sans text-ink-secondary">
+                        Create encrypted file shares and secure messages directly in your browser. Complete privacy without server-side key custody.
+                    </p>
+                    
+                    <div class="space-y-6">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <a href="/register" class="btn-primary w-full sm:w-auto text-center" id="cta-register">Create Account</a>
+                            <a href="/login" class="btn-secondary w-full sm:w-auto text-center" id="cta-login">Sign In</a>
+                        </div>
+                        
+                        <!-- Trust Row -->
+                        <div class="trust-row flex flex-wrap items-center gap-x-5 gap-y-3 text-xs text-ink-secondary/80 select-none pt-4 border-t border-archival-border/20">
+                            <span class="flex items-center gap-2.5"><span class="material-symbols-outlined text-[16px] text-sage">visibility_off</span> Private client encryption</span>
+                            <span class="flex items-center gap-2.5"><span class="material-symbols-outlined text-[16px] text-sage">schedule</span> Expiry enforcement</span>
+                            <span class="flex items-center gap-2.5"><span class="material-symbols-outlined text-[16px] text-sage">chat_bubble</span> Self-destructing messages</span>
+                            <span class="flex items-center gap-2.5"><span class="material-symbols-outlined text-[16px] text-sage">verified_user</span> No recipient registration</span>
+                        </div>
+
+                        <!-- Account Statement -->
+                        <p class="text-xs text-ink-muted leading-relaxed font-sans">
+                            Recipients can access files instantly. Accounts are only required for senders wishing to manage their E2EE links and revocation schedules.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right side: Interactive Demo Card -->
+            <div class="lg:col-span-5 w-full">
+                <div class="surface-card surface-card--primary space-y-4">
+                    <div class="flex items-center justify-between border-b border-archival-border pb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sage text-[18px]" aria-hidden="true">check_circle</span>
+                            <h4 class="text-sm font-semibold text-ink-primary font-sans">Share details</h4>
+                        </div>
+                        <span class="px-2 py-0.5 border border-archival-border bg-archival-soft text-sage text-[9px] font-semibold tracking-[0.05em] uppercase rounded">Simulated Demo</span>
+                    </div>
+                    
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between border-b border-archival-border/40 pb-2">
+                            <span class="text-ink-secondary">Selected file</span>
+                            <span class="text-ink-primary font-medium font-mono text-xs">document_draft.pdf (1.2 MB)</span>
+                        </div>
+                        <div class="flex justify-between border-b border-archival-border/40 pb-2">
+                            <span class="text-ink-secondary">Encryption status</span>
+                            <span class="text-sage font-mono font-medium text-xs">Encrypted in browser</span>
+                        </div>
+                        <div class="flex justify-between pb-2">
+                            <span class="text-ink-secondary">Expiry policy</span>
+                            <span class="text-ink-primary font-medium text-xs">1 hour (Auto-revoke active)</span>
+                        </div>
+                    </div>
+
+                    <div class="share-link-bar pt-2" id="demo-share-bar">
+                        <input type="text" readonly value="https://obsidian.secure/download/document_draft_enc#key=8f9a2d4c0b8f7e6a..." 
+                            class="share-link-input text-xs font-mono" id="demo-share-input" aria-label="Secure share link example">
+                        <button type="button" class="btn-primary py-2 px-3 text-sm shrink-0" id="demo-copy-btn" aria-label="Copy link representation">
+                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">content_copy</span>
+                        </button>
+                    </div>
+
+                    <!-- QR Code Workflow Preview -->
+                    <div class="flex gap-3 items-center pt-2 border-t border-archival-border/50">
+                        <div class="w-14 h-14 bg-archival-soft border border-archival-border rounded flex flex-col items-center justify-center font-mono text-[9px] text-ink-muted shrink-0 select-none" aria-hidden="true">
+                            <span class="material-symbols-outlined text-[20px] text-sage/70 mb-0.5">qr_code_2</span>
+                            <span>QR ACTIVE</span>
+                        </div>
+                        <div class="text-xs text-ink-secondary leading-relaxed">
+                            <p>An access QR code is automatically generated for direct mobile scans and physical offline handoffs.</p>
+                        </div>
+                    </div>
+
+                    <!-- Demo Card Footer Note -->
+                    <div class="pt-2 border-t border-archival-border/30 text-xs text-ink-muted text-center italic">
+                        Only the link holder can decrypt the file.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Cryptographic Workflow (How It Works) -->
+    <section aria-labelledby="workflow-title" class="landing-section space-y-6">
+        <div class="text-center max-w-2xl mx-auto space-y-2">
+            <h2 id="workflow-title" class="section-title-large text-ink-primary font-sans">
+                Zero-Knowledge Delivery Model
+            </h2>
+            <p class="text-sm text-ink-secondary leading-relaxed">
+                Obsidian Secure implements browser-side cryptography, isolating encryption keys from server systems.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+            <div class="absolute inset-y-0 left-4 w-0.5 bg-archival-border hidden md:block" style="left: 50%; transform: translateX(-50%); z-index: 1;"></div>
+            
+            <!-- Step 1 -->
+            <div class="surface-card surface-card--secondary flex flex-col p-6 space-y-3 relative z-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-sage/10 text-sage flex items-center justify-center font-semibold text-sm">1</div>
+                    <h3 class="card-title-large text-ink-primary font-sans">Local Generation</h3>
+                </div>
+                <p class="text-xs text-ink-secondary leading-relaxed">
+                    An AES-GCM 256-bit key is generated directly in your browser's memory using the Web Crypto API. The plaintext key never leaves your local system.
+                </p>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="surface-card surface-card--secondary flex flex-col p-6 space-y-3 relative z-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-sage/10 text-sage flex items-center justify-center font-semibold text-sm">2</div>
+                    <h3 class="card-title-large text-ink-primary font-sans">Encrypted Uploads</h3>
+                </div>
+                <p class="text-xs text-ink-secondary leading-relaxed">
+                    Files are encrypted in-memory before upload. Only the ciphertext payload is uploaded over TLS to the storage directory.
+                </p>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="surface-card surface-card--secondary flex flex-col p-6 space-y-3 relative z-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-sage/10 text-sage flex items-center justify-center font-semibold text-sm">3</div>
+                    <h3 class="card-title-large text-ink-primary font-sans">Hash Delivery</h3>
+                </div>
+                <p class="text-xs text-ink-secondary leading-relaxed">
+                    The key is appended to the URL fragment hash (<code class="text-sage">#key=...</code>). Because browsers do not transmit fragments to servers, keys remain strictly client-side.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 3: Engineering Highlights (Recruiter & Portfolio Showcase) -->
+    <section aria-labelledby="engineering-title" class="landing-section space-y-6">
+        <div class="text-center max-w-2xl mx-auto space-y-2">
+            <h2 id="engineering-title" class="section-title-large text-ink-primary font-sans">
+                Engineering &amp; Systems Architecture
+            </h2>
+            <p class="text-sm text-ink-secondary leading-relaxed">
+                Obsidian Secure is built as a highly optimized, production-ready portfolio project featuring modern engineering primitives.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Highlight 1: Client Crypto -->
+            <div class="surface-card surface-card--secondary p-6 space-y-4">
+                <div class="flex items-center gap-2 border-b border-archival-border/40 pb-3">
+                    <span class="material-symbols-outlined text-[20px] text-sage">memory</span>
+                    <h3 class="card-title-large text-ink-primary font-sans">Client Cryptography</h3>
+                </div>
+                <p class="text-xs text-ink-secondary leading-relaxed">
+                    Processes payloads up to 100 MB directly in browser memory. Utilizes AES-256-GCM single-request encryption to secure your assets without browser tab crashes or memory leakage.
+                </p>
+            </div>
+
+            <!-- Highlight 2: Database Metrics Buffer -->
+            <div class="surface-card surface-card--secondary p-6 space-y-4">
+                <div class="flex items-center gap-2 border-b border-archival-border/40 pb-3">
+                    <span class="material-symbols-outlined text-[20px] text-sage">database</span>
+                    <h3 class="card-title-large text-ink-primary font-sans">Metrics Batch Buffering</h3>
+                </div>
+                <p class="text-xs text-ink-secondary leading-relaxed">
+                    Includes a thread-safe batch buffering layer that queues download notifications and flushes metrics periodically. Reduces heavy disk I/O operations and prevents database lockouts under concurrent workloads.
+                </p>
+            </div>
+
+            <!-- Highlight 3: Production Security Hardening -->
+            <div class="surface-card surface-card--secondary p-6 space-y-4">
+                <div class="flex items-center gap-2 border-b border-archival-border/40 pb-3">
+                    <span class="material-symbols-outlined text-[20px] text-sage">shield</span>
+                    <h3 class="card-title-large text-ink-primary font-sans">Production Hardening</h3>
+                </div>
+                <p class="text-xs text-ink-secondary leading-relaxed">
+                    Designed with strict security headers, including HTTP Strict Transport Security (HSTS) and granular Content Security Policies (CSP). Safe WSGI reverse proxy configurations ensure client IP validity for rate limiters.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 4: Key Capabilities -->
+    <section aria-labelledby="capabilities-title" class="landing-section space-y-6">
+        <h2 id="capabilities-title" class="section-title-large text-ink-primary mb-2 font-sans">
+            Key Capabilities
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Card 1: Files -->
+            <div class="surface-card surface-card--secondary flex flex-col p-6">
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2 border-b border-archival-border/40 pb-3">
+                        <span class="material-symbols-outlined text-[20px] text-sage">folder</span>
+                        <h3 class="card-title-large text-ink-primary font-sans">File Sharing</h3>
+                    </div>
+                    <ul class="space-y-4 text-xs leading-relaxed">
+                        <li>
+                            <strong class="text-ink-primary block font-medium">Send files privately</strong>
+                            <span class="text-ink-secondary/80">Transfer documents securely without storing unencrypted data on the host.</span>
+                        </li>
+                        <li>
+                            <strong class="text-ink-primary block font-medium">Auto-expire links</strong>
+                            <span class="text-ink-secondary/80">Automatically revoke access after a selected duration (1 hour to 7 days).</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Card 2: Messages -->
+            <div class="surface-card surface-card--secondary flex flex-col p-6">
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2 border-b border-archival-border/40 pb-3">
+                        <span class="material-symbols-outlined text-[20px] text-sage">chat_bubble</span>
+                        <h3 class="card-title-large text-ink-primary font-sans">Secure Messages</h3>
+                    </div>
+                    <ul class="space-y-4 text-xs leading-relaxed">
+                        <li>
+                            <strong class="text-ink-primary block font-medium">Secure text notes</strong>
+                            <span class="text-ink-secondary/80">Share credentials, passwords, and tokens using transient encrypted notes.</span>
+                        </li>
+                        <li>
+                            <strong class="text-ink-primary block font-medium">Burn-after-read</strong>
+                            <span class="text-ink-secondary/80">Wipe ciphertext database records permanently after the first read.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Card 3: Privacy & Access -->
+            <div class="surface-card surface-card--secondary flex flex-col p-6">
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2 border-b border-archival-border/40 pb-3">
+                        <span class="material-symbols-outlined text-[20px] text-sage">admin_panel_settings</span>
+                        <h3 class="card-title-large text-ink-primary font-sans">Privacy &amp; Access</h3>
+                    </div>
+                    <ul class="space-y-4 text-xs leading-relaxed">
+                        <li>
+                            <strong class="text-ink-primary block font-medium">Anonymized transfers</strong>
+                            <span class="text-ink-secondary/80">Hide original filenames. Ghost Mode serves payloads under blank metadata.</span>
+                        </li>
+                        <li>
+                            <strong class="text-ink-primary block font-medium">Dynamic aliases</strong>
+                            <span class="text-ink-secondary/80">Snapshot your profile name at transfer time to hide raw user IDs.</span>
+                        </li>
+                        <li>
+                            <strong class="text-ink-primary block font-medium">Mobile QR codes</strong>
+                            <span class="text-ink-secondary/80">Generate high-contrast, offline-scannable QR links on the dashboard.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 5: Security Architecture FAQ -->
+    <section aria-labelledby="faq-title" class="landing-section space-y-6">
+        <div class="text-center max-w-2xl mx-auto space-y-2">
+            <h2 id="faq-title" class="section-title-large text-ink-primary font-sans">
+                Security &amp; Architecture FAQ
+            </h2>
+            <p class="text-sm text-ink-secondary leading-relaxed">
+                Review key cryptographic design decisions behind Obsidian Secure.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="surface-card surface-card--secondary p-6 space-y-2">
+                <h3 class="text-sm font-semibold text-ink-primary">Why is no recipient account required?</h3>
+                <p class="text-xs text-ink-secondary leading-relaxed">
+                    Decryption occurs on-the-fly in the recipient's browser. Since the decryption key is passed via the URL's hash fragment, the recipient's local scripts decrypt the raw bytes without registering accounts or logging in.
+                </p>
+            </div>
+
+            <div class="surface-card surface-card--secondary p-6 space-y-2">
+                <h3 class="text-sm font-semibold text-ink-primary">Can forgotten passwords be recovered?</h3>
+                <p class="text-xs text-ink-secondary leading-relaxed">
+                    No. To maintain strict zero-knowledge isolation, your master password is used to generate session keys. The database stores password hashes but cannot recover them. Forgotten passwords result in complete loss of E2EE shares.
+                </p>
+            </div>
+
+            <div class="surface-card surface-card--secondary p-6 space-y-2">
+                <h3 class="text-sm font-semibold text-ink-primary">What happens when files expire?</h3>
+                <p class="text-xs text-ink-secondary leading-relaxed">
+                    Upon expiration, files are immediately marked as offline. A daemon script executes in the background of the application context, securely deleting orphan binary files from the storage volume.
+                </p>
+            </div>
+
+            <div class="surface-card surface-card--secondary p-6 space-y-2">
+                <h3 class="text-sm font-semibold text-ink-primary">Can the host server decrypt my files?</h3>
+                <p class="text-xs text-ink-secondary leading-relaxed">
+                    No. Files are encrypted with AES-GCM 256-bit encryption before upload. The server never receives the hash fragment representing the key, meaning the host is physically incapable of decrypting payloads.
+                </p>
+            </div>
+
+            <div class="surface-card surface-card--secondary p-6 space-y-2">
+                <h3 class="text-sm font-semibold text-ink-primary">How does file revocation work?</h3>
+                <p class="text-xs text-ink-secondary leading-relaxed">
+                    Senders can instantly revoke any active share link from their Active Shares ledger. Revocation immediately purges the database metadata and deletes the encrypted payload from disk storage.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sticky Mobile CTA (< sm screens) -->
+    <div class="sm:hidden fixed bottom-0 left-0 right-0 p-3 bg-archival-soft/95 backdrop-blur border-t border-archival-border z-50 flex gap-2.5 shadow-lg" role="region" aria-label="Mobile quick actions">
+        <a href="/register" class="btn-primary flex-1 text-center text-xs py-2.5" id="mobile-sticky-register">Create Account</a>
+        <a href="/login" class="btn-secondary flex-1 text-center text-xs py-2.5" id="mobile-sticky-login">Sign In</a>
+    </div>
+
+    <!-- Footer -->
+    <footer class="landing-section border-t border-archival-border/40 py-6 text-center text-xs text-ink-secondary">
+        <p>&copy; 2026 Obsidian Secure · <a href="/privacy" class="text-ink-primary hover:text-sage">Privacy Policy</a> · <a href="https://github.com/Tejas-Acharya-C/Obsidian-Secure" class="text-ink-primary hover:text-sage font-mono">GitHub</a> · Private file sharing with client-side encryption.</p>
+    </footer>
+</div>
+{% endblock %}

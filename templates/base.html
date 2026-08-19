@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport" />
+    <title>{% block title %}Obsidian Secure | Secure File Sharing{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}Obsidian Secure provides browser-side AES-256-GCM encrypted file sharing and self-destructing messages with zero server-side key custody.{% endblock %}">
+    {% block meta_robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+    {% block canonical %}{% endblock %}
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Obsidian Secure">
+    <meta property="og:title" content="{% block og_title %}Obsidian Secure | Secure File Sharing{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Browser-side encrypted file sharing and self-destructing messages with zero server-side key custody.{% endblock %}">
+    <meta property="og:url" content="{% block og_url %}{{ public_base_url }}/{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{{ public_base_url }}/static/img/logo.png{% endblock %}">
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{% block twitter_title %}Obsidian Secure | Secure File Sharing{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Browser-side encrypted file sharing and self-destructing messages with zero server-side key custody.{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ public_base_url }}/static/img/logo.png{% endblock %}">
+
+    <link rel="icon" type="image/png" href="/static/img/logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@300,0..1&display=swap"
+        rel="stylesheet" />
+
+    {% block extra_head %}{% endblock %}
+
+    <!-- Design System -->
+    <link rel="stylesheet" href="/static/css/utilities.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+
+<body class="{{ body_class or '' }}" data-toast-message="{% if message %}{{ message|e }}{% endif %}">
+    <!-- Skip to main content (accessibility) -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+
+
+    <!-- Navigation System -->
+    {% if not hide_nav %}
+    {% if current_user.is_authenticated %}
+    <nav class="sticky top-0 z-40 nav-bar" aria-label="Main navigation">
+        <div class="max-w-[1400px] mx-auto px-6 md:px-10 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-8">
+                <a href="/" class="nav-brand flex items-center gap-3 group" aria-label="Obsidian Secure — Home">
+                    <picture>
+                        <source srcset="/static/img/logo.webp" type="image/webp">
+                        <img src="/static/img/logo.png" alt="" class="h-8 w-auto object-contain" aria-hidden="true" width="32" height="32">
+                    </picture>
+                    <span class="brand-text text-sm font-semibold tracking-[0.18em] text-ink-primary uppercase">Obsidian Secure</span>
+                </a>
+
+                <!-- Main Nav Links (desktop) -->
+                <div class="desktop-nav flex items-center gap-6">
+                    <a href="/"
+                        class="nav-link {% if current_page == 'files' or not current_page %}nav-link--active{% endif %}"
+                        {% if current_page == 'files' or not current_page %}aria-current="page"{% endif %}>
+                        Files
+                    </a>
+                    <a href="/active-shares"
+                        class="nav-link {% if current_page == 'active_shares' %}nav-link--active{% endif %}"
+                        {% if current_page == 'active_shares' %}aria-current="page"{% endif %}>
+                        Active Shares
+                    </a>
+                    <a href="/cipher"
+                        class="nav-link {% if current_page == 'cipher' %}nav-link--active{% endif %}"
+                        {% if current_page == 'cipher' %}aria-current="page"{% endif %}>
+                        Messages
+                    </a>
+                    <a href="/security"
+                        class="nav-link {% if current_page == 'security' %}nav-link--active{% endif %}"
+                        {% if current_page == 'security' %}aria-current="page"{% endif %}>
+                        How It Works
+                    </a>
+                </div>
+            </div>
+
+            <!-- Right Nav / Settings -->
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1">
+                    <button id="mobile-nav-toggle" class="btn-icon mobile-nav-toggle" aria-label="Open navigation menu" aria-controls="mobile-nav-panel" aria-expanded="false">
+                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">menu</span>
+                    </button>
+                    <a href="/settings" class="btn-icon hidden md:flex" title="Settings" aria-label="Settings">
+                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">settings</span>
+                    </a>
+                    <form action="/logout" method="POST" class="hidden md:block m-0 p-0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn-icon" title="Sign out" aria-label="Sign out">
+                            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">logout</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <div id="mobile-nav-backdrop" class="mobile-nav-backdrop" aria-hidden="true"></div>
+    <aside id="mobile-nav-panel" class="mobile-nav-panel" role="dialog" aria-label="Navigation menu" aria-hidden="true">
+        <div class="flex items-center justify-between gap-3">
+            <a href="/" class="text-base font-semibold text-ink-primary">Obsidian Secure</a>
+            <button type="button" id="mobile-nav-close" class="btn-icon" aria-label="Close navigation menu">
+                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+            </button>
+        </div>
+        <nav class="nav-section" aria-label="Mobile navigation">
+            <a href="/" class="text-ink-primary" {% if current_page == 'files' or not current_page %}aria-current="page"{% endif %}>Files</a>
+            <a href="/active-shares" class="text-ink-primary" {% if current_page == 'active_shares' %}aria-current="page"{% endif %}>Active Shares</a>
+            <a href="/cipher" class="text-ink-primary" {% if current_page == 'cipher' %}aria-current="page"{% endif %}>Messages</a>
+            <a href="/security" class="text-ink-primary" {% if current_page == 'security' %}aria-current="page"{% endif %}>How It Works</a>
+            <a href="/settings" class="text-ink-primary" {% if current_page == 'settings' %}aria-current="page"{% endif %}>Settings</a>
+            <form action="/logout" method="POST" class="m-0 p-0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="text-ink-primary">Sign out</button>
+            </form>
+        </nav>
+    </aside>
+    {% else %}
+    <nav class="sticky top-0 z-40 nav-bar" aria-label="Main navigation">
+        <div class="max-w-[1400px] mx-auto px-6 md:px-10 h-16 flex items-center justify-between">
+            <a href="/" class="nav-brand flex items-center gap-3" aria-label="Obsidian Secure — Home">
+                <picture>
+                    <source srcset="/static/img/logo.webp" type="image/webp">
+                    <img src="/static/img/logo.png" alt="" class="h-9 w-auto object-contain" aria-hidden="true" width="36" height="36">
+                </picture>
+                <span class="brand-text text-sm font-semibold tracking-[0.18em] text-ink-primary uppercase">Obsidian Secure</span>
+            </a>
+            <div class="flex items-center gap-3">
+                <button id="mobile-nav-toggle" class="btn-icon mobile-nav-toggle" aria-label="Open navigation menu" aria-controls="mobile-nav-panel" aria-expanded="false">
+                    <span class="material-symbols-outlined text-[20px]" aria-hidden="true">menu</span>
+                </button>
+                <a href="/login" class="btn-secondary desktop-nav">Sign In</a>
+                <a href="/register" class="btn-primary desktop-nav">Create Account</a>
+            </div>
+        </div>
+    </nav>
+    <div id="mobile-nav-backdrop" class="mobile-nav-backdrop" aria-hidden="true"></div>
+    <aside id="mobile-nav-panel" class="mobile-nav-panel" role="dialog" aria-label="Navigation menu" aria-hidden="true">
+        <div class="flex items-center justify-between gap-3">
+            <a href="/" class="text-base font-semibold text-ink-primary">Obsidian Secure</a>
+            <button type="button" id="mobile-nav-close" class="btn-icon" aria-label="Close navigation menu">
+                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+            </button>
+        </div>
+        <nav class="nav-section" aria-label="Mobile navigation">
+            <a href="/login" class="text-ink-primary">Sign In</a>
+            <a href="/register" class="text-ink-primary">Create Account</a>
+        </nav>
+    </aside>
+    {% endif %}
+    {% endif %}
+
+    <!-- Main Layout Container -->
+    <main id="main-content" class="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10 flex flex-col animate-fade-in" role="main">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Global Toast System -->
+    <div id="toast-container" class="fixed top-6 right-6 z-[200] flex flex-col gap-3 max-w-sm w-full pointer-events-none" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Global Confirmation Dialog -->
+    <dialog id="confirm-dialog" class="surface-card surface-card--primary p-6 rounded-xl border border-archival-border shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm max-w-sm w-full mx-auto" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-desc">
+        <h3 id="confirm-dialog-title" class="text-lg font-semibold text-ink-primary mb-2 font-sans">Are you sure?</h3>
+        <p id="confirm-dialog-desc" class="text-sm text-ink-secondary mb-6 leading-relaxed">
+            This action cannot be undone.<br>
+            Recipients will no longer be able to access this item.
+        </p>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 mt-4 pt-4 border-t border-archival-border/40">
+            <button type="button" id="confirm-dialog-cancel" class="btn-secondary py-2 px-4 text-sm font-medium order-2 sm:order-1">Cancel</button>
+            <button type="button" id="confirm-dialog-confirm" class="btn-destructive py-2 px-4 text-sm font-medium order-1 sm:order-2">Confirm</button>
+        </div>
+    </dialog>
+
+    {% block scripts %}
+    <script src="/static/js/qrcode.min.js"></script>
+    <script src="/static/js/app.js" defer></script>
+    {% endblock %}
+</body>
+
+</html>

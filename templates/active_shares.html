@@ -1,0 +1,392 @@
+{% set body_class = 'app-dashboard-page' %}
+{% extends "base.html" %}
+
+{% block title %}Active Shares | Obsidian Secure{% endblock %}
+
+{% block content %}
+<div class="max-w-[1400px] w-full stagger-children flex flex-col mx-auto px-4 sm:px-6">
+    <!-- Page Header -->
+    <div class="mb-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+        <div>
+            <h1 class="text-lg font-semibold text-ink-primary mb-1">Active Shares</h1>
+            <p class="text-ink-secondary text-xs">Manage active secure file links, expiration status, access counts, and revocation.</p>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <a href="/" class="btn-primary py-2 px-4 text-xs inline-flex items-center gap-2 self-start md:self-auto">
+                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">add</span>
+                <span>New Share</span>
+            </a>
+        </div>
+    </div>
+
+    {% if shares %}
+    <!-- Search, Filter & Sort Controls Toolbar -->
+    <div class="active-shares-toolbar">
+        <!-- Search Input Container -->
+        <div class="search-input-wrapper">
+            <span class="material-symbols-outlined search-icon" aria-hidden="true">search</span>
+            <input type="text" id="share-search" placeholder="Search by filename or status..." 
+                aria-label="Search active shares by filename or status">
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 justify-between md:justify-end">
+            <!-- Cohesive Dark Mineral Filter Segmented Control -->
+            <div class="share-filter-segmented-control" role="tablist" aria-label="Filter shares by status">
+                <button type="button" data-filter="all" class="share-filter-btn" role="tab" aria-selected="true">All</button>
+                <button type="button" data-filter="active" class="share-filter-btn" role="tab" aria-selected="false">Active</button>
+                <button type="button" data-filter="expiring_soon" class="share-filter-btn" role="tab" aria-selected="false">Expiring Soon</button>
+                <button type="button" data-filter="expired" class="share-filter-btn" role="tab" aria-selected="false">Expired</button>
+            </div>
+
+            <!-- Sort Dropdown Container -->
+            <div class="sort-dropdown-wrapper">
+                <select id="share-sort" aria-label="Sort shares list">
+                    <option value="newest">Newest first</option>
+                    <option value="oldest">Oldest first</option>
+                    <option value="expiring_soonest">Expiring soonest</option>
+                </select>
+                <span class="material-symbols-outlined sort-arrow" aria-hidden="true">expand_more</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Shares Table & Cards Container -->
+    <div class="pb-8 scrollable-ledger">
+        <div id="active-shares-panel" class="surface-card surface-card--secondary overflow-hidden">
+            <!-- Desktop Table View (>= md breakpoint) -->
+            <div class="hidden md:block overflow-x-auto">
+                <table id="active-shares-table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="col-file">File / Payload</th>
+                            <th scope="col" class="col-security">Security</th>
+                            <th scope="col" class="col-created">Created</th>
+                            <th scope="col" class="col-expiration">Expiration</th>
+                            <th scope="col" class="col-accesses">Accesses</th>
+                            <th scope="col" class="col-status">Status</th>
+                            <th scope="col" class="col-actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shares-table-body" class="text-xs">
+                        {% for share in shares %}
+                        {% set upload_iso = share.upload_time.isoformat() if share.upload_time else '' %}
+                        {% set expiry_iso = share.expiry_time.isoformat() if share.expiry_time else '' %}
+                        <tr class="share-item-row group"
+                            data-name="{{ share.original_name|lower }}"
+                            data-upload="{{ upload_iso }}Z"
+                            data-expiry="{{ expiry_iso }}Z">
+                            
+                            <!-- File / Payload Cell -->
+                            <td class="col-file">
+                                <div class="flex items-center gap-2.5 min-w-0">
+                                    <span class="material-symbols-outlined text-[20px] text-sage shrink-0" aria-hidden="true">description</span>
+                                    <div class="min-w-0">
+                                        <div class="share-filename-primary truncate title-cell" title="{{ share.original_name }}">
+                                            {{ share.original_name }}
+                                        </div>
+                                        <div class="share-mime-secondary truncate">
+                                            {{ share.mime_type or 'encrypted file' }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <!-- Security Cell -->
+                            <td class="col-security">
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[15px] text-sage shrink-0" aria-hidden="true">lock</span>
+                                    {% if share.is_auto_revoke %}
+                                    <span class="badge-security-auto">
+                                        Auto-Revoke
+                                    </span>
+                                    {% else %}
+                                    <span class="badge-security-standard">Standard</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <!-- Created Cell -->
+                            <td class="col-created text-ink-secondary text-[11px]">
+                                {{ share.upload_time.strftime('%b %d, %Y %H:%M') if share.upload_time else 'Recently' }} UTC
+                            </td>
+
+                            <!-- Expiration Cell -->
+                            <td class="col-expiration text-ink-secondary text-[11px]">
+                                <span class="expiry-countdown block font-mono text-[11px]" data-expiry-time="{{ expiry_iso }}Z">
+                                    {{ share.expiry_time.strftime('%b %d, %H:%M') if share.expiry_time else 'Soon' }} UTC
+                                </span>
+                            </td>
+
+                            <!-- Accesses Cell -->
+                            <td class="col-accesses text-ink-secondary text-[11px]">
+                                <span class="font-semibold text-ink-primary text-xs">{{ share.download_count }}</span>
+                                <span class="text-ink-muted text-[10px] block">{{ 'access' if share.download_count == 1 else 'accesses' }}</span>
+                            </td>
+
+                            <!-- Status Cell -->
+                            <td class="col-status status-cell">
+                                <span class="status-badge inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-sage/10 text-sage border border-sage/20">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-sage"></span>
+                                    <span>Active</span>
+                                </span>
+                            </td>
+
+                            <!-- Actions Cell (Revoke only) -->
+                            <td class="col-actions">
+                                <form action="/revoke" method="POST" class="inline confirm-destructive">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="public_url" value="{{ share.public_url }}">
+                                    <button type="submit" 
+                                        class="btn-destructive py-1 px-2.5 text-[11px] min-h-[30px] hover:bg-destructive/10 inline-flex items-center justify-center gap-1" 
+                                        aria-label="Revoke access to {{ share.original_name }}">
+                                        <span class="material-symbols-outlined text-[14px]" aria-hidden="true">delete</span>
+                                        <span>Revoke</span>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile Cards View (< md breakpoint) -->
+            <div id="shares-cards-container" class="md:hidden p-3 space-y-3">
+                {% for share in shares %}
+                {% set upload_iso = share.upload_time.isoformat() if share.upload_time else '' %}
+                {% set expiry_iso = share.expiry_time.isoformat() if share.expiry_time else '' %}
+                <div class="share-item-card bg-archival-soft border border-archival-border rounded-lg p-4 space-y-3"
+                    data-name="{{ share.original_name|lower }}"
+                    data-upload="{{ upload_iso }}Z"
+                    data-expiry="{{ expiry_iso }}Z">
+                    
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] text-sage shrink-0" aria-hidden="true">description</span>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-semibold text-ink-primary truncate title-cell">{{ share.original_name }}</h4>
+                                <div class="text-[10px] text-ink-muted font-mono">{{ share.mime_type or 'encrypted file' }}</div>
+                            </div>
+                        </div>
+                        <span class="status-cell shrink-0">
+                            <span class="status-badge inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-sage/10 text-sage border border-sage/20">
+                                <span class="w-1.5 h-1.5 rounded-full bg-sage"></span>
+                                <span>Active</span>
+                            </span>
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-[11px] py-2 border-y border-archival-border/40 text-ink-secondary">
+                        <div>
+                            <span class="text-ink-muted text-[10px] block">Created</span>
+                            <span>{{ share.upload_time.strftime('%b %d, %H:%M') if share.upload_time else 'Recently' }} UTC</span>
+                        </div>
+                        <div>
+                            <span class="text-ink-muted text-[10px] block">Expiration</span>
+                            <span class="expiry-countdown font-mono text-[11px]" data-expiry-time="{{ expiry_iso }}Z">
+                                {{ share.expiry_time.strftime('%b %d, %H:%M') if share.expiry_time else 'Soon' }} UTC
+                            </span>
+                        </div>
+                        <div>
+                            <span class="text-ink-muted text-[10px] block">Accesses</span>
+                            <span class="font-semibold text-ink-primary">{{ share.download_count }}</span> {{ 'access' if share.download_count == 1 else 'accesses' }}
+                        </div>
+                        <div>
+                            <span class="text-ink-muted text-[10px] block">Security</span>
+                            <span class="flex items-center gap-1">
+                                {% if share.is_auto_revoke %}
+                                <span class="text-sage font-medium">Auto-Revoke</span>
+                                {% else %}
+                                <span>Standard</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="pt-1">
+                        <form action="/revoke" method="POST" class="w-full confirm-destructive">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="public_url" value="{{ share.public_url }}">
+                            <button type="submit" 
+                                class="btn-destructive w-full py-2 px-3 text-xs min-h-[44px] justify-center hover:bg-destructive/10 inline-flex items-center gap-1.5" 
+                                aria-label="Revoke access to {{ share.original_name }}">
+                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
+                                <span>Revoke</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- No Filter Results State (shown via JS when search/filter returns 0 items) -->
+            <div id="no-filter-results" class="hidden p-8 text-center border-t border-archival-border bg-archival-soft/20">
+                <span class="material-symbols-outlined text-3xl text-ink-muted mb-2 block" aria-hidden="true">search_off</span>
+                <h3 class="text-xs font-semibold text-ink-primary mb-1">No matching shares</h3>
+                <p class="text-xs text-ink-secondary mb-4">Try adjusting your search terms or status filter.</p>
+                <button type="button" id="reset-filter-btn" class="btn-secondary py-1.5 px-3 text-xs mx-auto inline-flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">refresh</span>
+                    <span>Reset Filters</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Zero Shares Empty State -->
+    <div id="active-shares-empty" class="empty-state border border-dashed border-archival-border bg-archival-soft/20 rounded-lg p-10 max-w-md mx-auto my-8 text-center">
+        <div class="w-12 h-12 rounded-full bg-archival-soft border border-archival-border flex items-center justify-center mx-auto mb-4 text-sage">
+            <span class="material-symbols-outlined text-2xl" aria-hidden="true">folder_open</span>
+        </div>
+        <h3 class="text-sm font-semibold text-ink-primary mb-1.5">No active shares</h3>
+        <p class="text-xs text-ink-secondary leading-relaxed mb-6">Your secure file shares will appear here after you upload a file.</p>
+        <a href="/" class="btn-primary py-2 px-4 text-xs max-w-xs mx-auto justify-center inline-flex items-center gap-2">
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">add</span>
+            <span>Create Secure Share</span>
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% if shares %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const EXPIRING_SOON_MS = 15 * 60 * 1000; // 15 minutes threshold
+
+    const searchInput = document.getElementById('share-search');
+    const filterBtns = document.querySelectorAll('.share-filter-btn');
+    const sortSelect = document.getElementById('share-sort');
+    const rows = Array.from(document.querySelectorAll('.share-item-row'));
+    const cards = Array.from(document.querySelectorAll('.share-item-card'));
+    const noResults = document.getElementById('no-filter-results');
+    const resetBtn = document.getElementById('reset-filter-btn');
+
+    let currentFilter = 'all';
+    let currentSearch = '';
+
+    function getShareStatus(expiryIso) {
+        if (!expiryIso) return 'active';
+        const expiryDate = new Date(expiryIso);
+        const now = new Date();
+        const diffMs = expiryDate.getTime() - now.getTime();
+        if (diffMs <= 0) return 'expired';
+        if (diffMs <= EXPIRING_SOON_MS) return 'expiring_soon';
+        return 'active';
+    }
+
+    function updateStatusBadges() {
+        const updateElement = (container, expiryIso) => {
+            const status = getShareStatus(expiryIso);
+            container.dataset.statusCalculated = status;
+            const badge = container.querySelector('.status-badge');
+            if (!badge) return;
+
+            if (status === 'expired') {
+                badge.className = 'status-badge inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-destructive/10 text-destructive border border-destructive/20';
+                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-destructive"></span><span>Expired</span>';
+            } else if (status === 'expiring_soon') {
+                badge.className = 'status-badge inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span>Expiring Soon</span>';
+            } else {
+                badge.className = 'status-badge inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-sage/10 text-sage border border-sage/20';
+                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-sage"></span><span>Active</span>';
+            }
+        };
+
+        rows.forEach(row => updateElement(row, row.dataset.expiry));
+        cards.forEach(card => updateElement(card, card.dataset.expiry));
+    }
+
+    function filterAndSort() {
+        updateStatusBadges();
+
+        let visibleCount = 0;
+
+        const applyToItem = (item) => {
+            const name = item.dataset.name || '';
+            const status = item.dataset.statusCalculated || 'active';
+            const matchesSearch = !currentSearch || name.includes(currentSearch) || status.includes(currentSearch);
+            
+            let matchesFilter = true;
+            if (currentFilter === 'active') matchesFilter = (status === 'active');
+            else if (currentFilter === 'expiring_soon') matchesFilter = (status === 'expiring_soon');
+            else if (currentFilter === 'expired') matchesFilter = (status === 'expired');
+
+            const isVisible = matchesSearch && matchesFilter;
+            item.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount++;
+        };
+
+        rows.forEach(applyToItem);
+        cards.forEach(applyToItem);
+
+        if (noResults) {
+            noResults.style.display = (visibleCount === 0) ? 'block' : 'none';
+        }
+
+        // Sorting
+        const sortVal = sortSelect ? sortSelect.value : 'newest';
+        const sortItems = (container, selector) => {
+            if (!container) return;
+            const items = Array.from(container.querySelectorAll(selector));
+            items.sort((a, b) => {
+                const uploadA = new Date(a.dataset.upload || 0).getTime();
+                const uploadB = new Date(b.dataset.upload || 0).getTime();
+                const expiryA = new Date(a.dataset.expiry || 0).getTime();
+                const expiryB = new Date(b.dataset.expiry || 0).getTime();
+
+                if (sortVal === 'oldest') return uploadA - uploadB;
+                if (sortVal === 'expiring_soonest') return expiryA - expiryB;
+                return uploadB - uploadA; // newest
+            });
+            items.forEach(item => container.appendChild(item));
+        };
+
+        const tableBody = document.getElementById('shares-table-body');
+        const cardsContainer = document.getElementById('shares-cards-container');
+        sortItems(tableBody, '.share-item-row');
+        sortItems(cardsContainer, '.share-item-card');
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            currentSearch = e.target.value.toLowerCase().trim();
+            filterAndSort();
+        });
+    }
+
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterBtns.forEach(b => {
+                b.setAttribute('aria-selected', 'false');
+            });
+            btn.setAttribute('aria-selected', 'true');
+            currentFilter = btn.dataset.filter;
+            filterAndSort();
+        });
+    });
+
+    if (sortSelect) {
+        sortSelect.addEventListener('change', filterAndSort);
+    }
+
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            currentSearch = '';
+            currentFilter = 'all';
+            filterBtns.forEach((b, idx) => {
+                b.setAttribute('aria-selected', idx === 0 ? 'true' : 'false');
+            });
+            filterAndSort();
+        });
+    }
+
+    filterAndSort();
+});
+</script>
+{% endif %}
+{% endblock %}

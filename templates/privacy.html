@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy | Obsidian Secure{% endblock %}
+{% block meta_description %}Privacy Policy for Obsidian Secure detailing client-side encryption, zero key custody, data storage, and security logging policies.{% endblock %}
+{% block meta_robots %}<meta name="robots" content="index, follow">{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ public_base_url }}/privacy">{% endblock %}
+
+{% block content %}
+<div class="privacy-wrapper relative z-10 w-full max-w-[960px] mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 sm:space-y-7 animate-fade-in">
+    <!-- Header -->
+    <div class="space-y-2 border-b border-archival-border/50 pb-5">
+        <div class="flex items-center gap-2 text-sage text-xs font-mono uppercase tracking-wider">
+            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">gavel</span>
+            Privacy Specification
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-semibold text-ink-primary font-sans leading-tight">Privacy Policy</h1>
+        <p class="text-xs sm:text-sm text-ink-secondary">Last updated: August 2026</p>
+    </div>
+
+    <!-- Overview Card -->
+    <div class="surface-card surface-card--secondary p-6 sm:p-7 rounded-xl border border-archival-border/60 shadow-lg">
+        <h2 class="text-base sm:text-lg font-semibold text-ink-primary flex items-center gap-2.5 border-b border-archival-border/40 pb-3 mb-4">
+            <span class="material-symbols-outlined text-sage text-[20px]" aria-hidden="true">verified_user</span>
+            Zero-Knowledge Architecture Overview
+        </h2>
+        <p class="text-sm sm:text-[15px] text-ink-secondary leading-relaxed">
+            Obsidian Secure is designed around client-side end-to-end encryption (E2EE). All file and message payloads are encrypted directly inside your web browser using AES-256-GCM before transmission. Decryption keys are appended exclusively via URL hash fragments (<code class="text-sage font-mono text-xs sm:text-sm bg-archival-bg/60 px-1.5 py-0.5 rounded">#key=...</code>). Because standard web browsers do not send hash fragments in HTTP requests to servers, Obsidian Secure operates with zero server-side key custody.
+        </p>
+    </div>
+
+    <!-- Section 1: Account Information -->
+    <div class="surface-card surface-card--secondary p-6 sm:p-7 rounded-xl border border-archival-border/60 shadow-lg">
+        <h2 class="text-base sm:text-lg font-semibold text-ink-primary border-b border-archival-border/40 pb-3 mb-4">1. Account Data &amp; Credentials</h2>
+        <p class="text-sm sm:text-[15px] text-ink-secondary leading-relaxed mb-3">
+            Account registration is optional for recipients and is required only for senders who wish to create, manage, and revoke E2EE share links. When an account is created, we store:
+        </p>
+        <ul class="list-disc list-inside text-sm sm:text-[15px] text-ink-secondary space-y-3 pl-1 leading-relaxed">
+            <li><strong class="text-ink-primary">Username</strong>: Your alphanumeric user identifier.</li>
+            <li><strong class="text-ink-primary">Password Hash</strong>: Passwords are hashed server-side using PBKDF2 with SHA-256 (600,000 iterations). Plaintext passwords are never stored or logged.</li>
+            <li><strong class="text-ink-primary">Account Preferences</strong>: Optional settings such as display alias, Ghost Mode (filename masking), and default expiration policies.</li>
+        </ul>
+    </div>
+
+    <!-- Section 2: File Payloads & Expiration -->
+    <div class="surface-card surface-card--secondary p-6 sm:p-7 rounded-xl border border-archival-border/60 shadow-lg">
+        <h2 class="text-base sm:text-lg font-semibold text-ink-primary border-b border-archival-border/40 pb-3 mb-4">2. Uploaded Payloads &amp; Retention</h2>
+        <p class="text-sm sm:text-[15px] text-ink-secondary leading-relaxed mb-3">
+            Files uploaded to Obsidian Secure are stored as raw encrypted ciphertext blobs paired with a 12-byte random Initialization Vector (IV). The host server cannot read or inspect payload contents.
+        </p>
+        <ul class="list-disc list-inside text-sm sm:text-[15px] text-ink-secondary space-y-3 pl-1 leading-relaxed">
+            <li><strong class="text-ink-primary">Automatic Expiry</strong>: Share links expire automatically after a duration configured by the sender (ranging from 1 hour to 7 days).</li>
+            <li><strong class="text-ink-primary">Background Cleanup</strong>: When a share expires or is manually revoked, database metadata and physical storage blobs are permanently purged.</li>
+            <li><strong class="text-ink-primary">Self-Destruct Messages</strong>: Ciphers configured with Burn-On-Read are deleted from database storage immediately after recipient decryption.</li>
+        </ul>
+    </div>
+
+    <!-- Section 3: Security & Logging -->
+    <div class="surface-card surface-card--secondary p-6 sm:p-7 rounded-xl border border-archival-border/60 shadow-lg">
+        <h2 class="text-base sm:text-lg font-semibold text-ink-primary border-b border-archival-border/40 pb-3 mb-4">3. Rate Limiting &amp; Security Logs</h2>
+        <p class="text-sm sm:text-[15px] text-ink-secondary leading-relaxed mb-3">
+            To prevent brute-force attacks and service abuse, we maintain IP-based rate limit logs:
+        </p>
+        <ul class="list-disc list-inside text-sm sm:text-[15px] text-ink-secondary space-y-3 pl-1 leading-relaxed">
+            <li><strong class="text-ink-primary">Login Attempts</strong>: Failed login attempts are logged by IP address (limited to 5 attempts per 15 minutes).</li>
+            <li><strong class="text-ink-primary">Registration Attempts</strong>: Registration attempts are logged by IP address (limited to 5 attempts per hour).</li>
+            <li><strong class="text-ink-primary">Session Cookies</strong>: Active logins use <code class="text-sage font-mono text-xs sm:text-sm bg-archival-bg/60 px-1.5 py-0.5 rounded">HttpOnly</code>, <code class="text-sage font-mono text-xs sm:text-sm bg-archival-bg/60 px-1.5 py-0.5 rounded">SameSite=Lax</code>, and <code class="text-sage font-mono text-xs sm:text-sm bg-archival-bg/60 px-1.5 py-0.5 rounded">Secure</code> session cookies.</li>
+        </ul>
+    </div>
+
+    <!-- Section 4: Analytics & Third Parties -->
+    <div class="surface-card surface-card--secondary p-6 sm:p-7 rounded-xl border border-archival-border/60 shadow-lg">
+        <h2 class="text-base sm:text-lg font-semibold text-ink-primary border-b border-archival-border/40 pb-3 mb-4">4. Third-Party Analytics &amp; Tracking</h2>
+        <p class="text-sm sm:text-[15px] text-ink-secondary leading-relaxed">
+            Obsidian Secure does not use third-party tracking scripts, external advertising SDKs, or invasive analytics services. Telemetry is restricted to basic access telemetry counters to inform senders of link activity.
+        </p>
+    </div>
+
+    <!-- Return Action -->
+    <div class="pt-4 text-center">
+        <a href="/" class="btn-secondary inline-flex items-center justify-center gap-2 py-2.5 px-5 text-xs sm:text-sm">
+            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
+            Return to Homepage
+        </a>
+    </div>
+</div>
+{% endblock %}
