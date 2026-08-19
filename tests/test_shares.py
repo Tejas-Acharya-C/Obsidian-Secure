@@ -130,3 +130,46 @@ def test_share_revocation(auth_client, user1, csrf_token):
     with auth_client.application.app_context():
         assert db.session.get(Share, share_id) is None
         assert not os.path.exists(test_path)
+
+def test_download_counter_increments(auth_client, user1):
+    """Verifies that accessing a share file increments the download_count in DB atomically."""
+    test_filename = 'counter_test.enc'
+    test_path = os.path.join(auth_client.application.config['UPLOAD_FOLDER'], test_filename)
+    with open(test_path, 'wb') as f:
+        f.write(b"DATA_COUNTER_TEST")
+        
+    with auth_client.application.app_context():
+        s = Share(
+            filename=test_filename,
+            original_name='counter.txt',
+            mime_type='text/plain',
+            upload_time=datetime.utcnow(),
+            expiry_time=datetime.utcnow() + timedelta(hours=1),
+            download_count=0,
+            public_url='http://localhost/download/counter_test.enc',
+            user_id=user1['id']
+        )
+        db.session.add(s)
+        db.session.commit()
+        share_id = s.id
+
+    # Initial download count check
+    with auth_client.application.app_context():
+        share_obj = db.session.get(Share, share_id)
+        assert share_obj.download_count == 0
+
+    # First access
+    res1 = auth_client.get(f'/get/{test_filename}')
+    assert res1.status_code == 200
+
+    with auth_client.application.app_context():
+        share_obj = db.session.get(Share, share_id)
+        assert share_obj.download_count == 1
+
+    # Second access
+    res2 = auth_client.get(f'/api/v2/get/{test_filename}')
+    assert res2.status_code == 200
+
+    with auth_client.application.app_context():
+        share_obj = db.session.get(Share, share_id)
+        assert share_obj.download_count == 2

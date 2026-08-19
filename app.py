@@ -57,6 +57,21 @@ try:
     app.config['MAX_CONTENT_LENGTH'] = int(5.5 * 1024 * 1024 * 1024)  # 5.5GB
     app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # Engine options for database concurrency & lock prevention (SQLite & PostgreSQL)
+    if 'sqlite' in DATABASE_URI.lower():
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'connect_args': {'timeout': 30, 'check_same_thread': False},
+            'pool_pre_ping': True
+        }
+    else:
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_pre_ping': True,
+            'pool_recycle': 300,
+            'pool_size': 10,
+            'max_overflow': 20
+        }
+
     app.config['TEMPLATES_AUTO_RELOAD'] = True
     app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
     
@@ -518,72 +533,27 @@ def background_cleanup():
             time.sleep(30)
 
 
-# --- METRICS BATCHER (Optimization for 1000 Users) ---
+# --- ATOMIC ACCESS COUNTER LOGGING ---
 
-class MetricsBatcher:
-    """Thread-safe buffer to batch download updates and reduce DB writes.
-    Uses SQLAlchemy ORM within a Flask app context so it works transparently
-    against both SQLite (development) and PostgreSQL (production).
+def increment_download_count(share_id, filename):
+    """Atomically increments the download counter and logs transfer record.
+    Executes synchronously to ensure multi-worker Gunicorn safety and instant DB persistence.
     """
-    def __init__(self, flush_interval=10):
-        self.flush_interval = flush_interval
-        self.queue = []
-        self.lock = threading.Lock()
-        self.thread = threading.Thread(target=self._flusher, daemon=True)
-        self.thread.start()
-
-    def log_download(self, share_id, filename):
-        with self.lock:
-            self.queue.append({'id': share_id, 'file': filename, 'time': datetime.utcnow()})
-            # Flush immediately if queue is getting too large
-            if len(self.queue) >= 50:
-                self._flush_now()
-
-    def _flusher(self):
-        while True:
-            time.sleep(self.flush_interval)
-            self._flush_now()
-
-    def _flush_now(self):
-        with self.lock:
-            if not self.queue:
-                return
-            current_batch = self.queue[:]
-            self.queue = []
-
+    try:
+        with app.app_context():
+            Share.query.filter_by(id=share_id).update(
+                {Share.download_count: Share.download_count + 1},
+                synchronize_session=False
+            )
+            db.session.add(Transfer(share_id=share_id, timestamp=datetime.utcnow()))
+            db.session.commit()
+    except Exception as e:
         try:
             with app.app_context():
-                # Batch update download counts
-                counts = {}
-                for item in current_batch:
-                    counts[item['file']] = counts.get(item['file'], 0) + 1
-                
-                for filename, count in counts.items():
-                    Share.query.filter_by(filename=filename).update(
-                        {Share.download_count: Share.download_count + count}
-                    )
-                
-                # Batch insert transfers
-                for item in current_batch:
-                    db.session.add(Transfer(share_id=item['id'], timestamp=item['time']))
-                
-                db.session.commit()
-        except Exception as e:
-            print(f"Metrics Batcher Error: {e}")
-            try:
-                with app.app_context():
-                    db.session.rollback()
-            except:
-                pass
-        finally:
-            try:
-                with app.app_context():
-                    db.session.remove()
-            except:
-                pass
-
-# Initialize global batcher
-metrics_batcher = MetricsBatcher()
+                db.session.rollback()
+        except:
+            pass
+        app.logger.warning(f"Failed to increment download count for share id={share_id}: {e}")
 
 
 
@@ -926,8 +896,8 @@ def get_file(filename):
         app.logger.warning(f"[get_file] Physical file missing for share id={share.id} filename={filename}")
         return "File is no longer available", 410
     
-    # LOG ASYNC METRICS
-    metrics_batcher.log_download(share.id, filename)
+    # LOG ATOMIC METRICS
+    increment_download_count(share.id, filename)
     
     return send_from_directory(
         app.config['UPLOAD_FOLDER'], 
@@ -1179,8 +1149,8 @@ def get_file_v2(filename):
         app.logger.warning(f"[get_file_v2] Physical file missing for share id={share.id} filename={filename}")
         return "File is no longer available", 410
     
-    # LOG ASYNC METRICS
-    metrics_batcher.log_download(share.id, filename)
+    # LOG ATOMIC METRICS
+    increment_download_count(share.id, filename)
     
     return send_from_directory(
         app.config['UPLOAD_FOLDER'], 
