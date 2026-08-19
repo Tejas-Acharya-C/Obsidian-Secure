@@ -49,3 +49,10 @@ def test_private_routes_noindex_protection(client):
     res_dl = client.get('/download/nonexistent_file')
     assert res_dl.status_code == 200
     assert '<meta name="robots" content="noindex, nofollow">' in res_dl.data.decode('utf-8')
+
+def test_google_search_console_verification(client):
+    """Verifies public accessibility and exact content of Google Search Console HTML verification endpoint."""
+    res = client.get('/googlee5ae4db6815276ae.html')
+    assert res.status_code == 200
+    assert res.headers.get('Content-Type', '').startswith('text/html')
+    assert res.data.decode('utf-8') == "google-site-verification: googlee5ae4db6815276ae.html"

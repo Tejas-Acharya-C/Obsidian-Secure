@@ -687,6 +687,10 @@ def sitemap_xml():
     )
     return app.response_class(content, mimetype='application/xml')
 
+@app.route('/googlee5ae4db6815276ae.html')
+def google_verification():
+    return app.response_class('google-site-verification: googlee5ae4db6815276ae.html', mimetype='text/html')
+
 @app.route('/')
 def home_page():
     if current_user.is_authenticated:
