@@ -60,3 +60,24 @@ def test_google_search_console_verification(client):
     assert res.status_code == 200
     assert res.headers.get('Content-Type', '').startswith('text/html')
     assert res.data.decode('utf-8') == "google-site-verification: googlee5ae4db6815276ae.html"
+
+def test_google_analytics_4_integration(client):
+    """Verifies Basic Consent Mode GA4 loader, consent UI banner on public pages, and total absence from recipient/private pages."""
+    res_home = client.get('/')
+    html_home = res_home.data.decode('utf-8')
+    assert 'analytics-consent-banner' in html_home
+    assert 'btn-consent-accept' in html_home
+    assert 'btn-consent-decline' in html_home
+    assert 'G-7W7MZ9QLCW' in html_home
+    # Under Basic Consent Mode, static <script async src="https://www.googletagmanager.com/gtag/js is NOT present in static HTML
+    assert '<script async src="https://www.googletagmanager.com/gtag/js' not in html_home
+    
+    res_privacy = client.get('/privacy')
+    html_privacy = res_privacy.data.decode('utf-8')
+    assert 'analytics-consent-banner' in html_privacy
+    assert '<script async src="https://www.googletagmanager.com/gtag/js' not in html_privacy
+    
+    res_dl = client.get('/download/nonexistent_file')
+    html_dl = res_dl.data.decode('utf-8')
+    assert 'G-7W7MZ9QLCW' not in html_dl
+    assert 'analytics-consent-banner' not in html_dl

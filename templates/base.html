@@ -180,6 +180,77 @@
     <script src="/static/js/qrcode.min.js"></script>
     <script src="/static/js/app.js" defer></script>
     {% endblock %}
+
+    {% if request.path in ['/', '/privacy'] %}
+    <!-- Minimal Privacy-First Analytics Consent Banner -->
+    <div id="analytics-consent-banner" class="hidden fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-md z-50 p-4 rounded-xl surface-card border border-archival-border/80 shadow-2xl backdrop-blur-md">
+        <div class="flex flex-col gap-3">
+            <div class="flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-sage text-xl shrink-0 mt-0.5" aria-hidden="true">analytics</span>
+                <p class="text-xs sm:text-sm text-ink-secondary leading-relaxed">
+                    We use Google Analytics 4 to measure public website traffic and usage. Analytics is disabled until you choose to allow it.
+                </p>
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-1 border-t border-archival-border/40">
+                <button type="button" id="btn-consent-decline" class="px-3 py-1.5 rounded-lg text-xs font-medium text-ink-muted hover:text-ink-primary hover:bg-archival-bg/60 transition-colors">
+                    Decline
+                </button>
+                <button type="button" id="btn-consent-accept" class="btn-primary py-1.5 px-3 text-xs">
+                    Accept Analytics
+                </button>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function() {
+        var MEASUREMENT_ID = 'G-7W7MZ9QLCW';
+        var banner = document.getElementById('analytics-consent-banner');
+        var savedConsent = localStorage.getItem('obsidian_ga_consent');
+
+        function loadGA4() {
+            if (window.ga4Loaded) return;
+            window.ga4Loaded = true;
+
+            var script = document.createElement('script');
+            script.async = true;
+            script.src = 'https://www.googletagmanager.com/gtag/js?id=' + MEASUREMENT_ID;
+            document.head.appendChild(script);
+
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){ dataLayer.push(arguments); }
+            window.gtag = gtag;
+
+            gtag('js', new Date());
+            gtag('config', MEASUREMENT_ID);
+        }
+
+        // BASIC CONSENT MODE: load GA4 ONLY if consent was explicitly granted previously
+        if (savedConsent === 'granted') {
+            loadGA4();
+        } else if (!savedConsent && banner) {
+            banner.classList.remove('hidden');
+        }
+
+        var acceptBtn = document.getElementById('btn-consent-accept');
+        var declineBtn = document.getElementById('btn-consent-decline');
+
+        if (acceptBtn) {
+            acceptBtn.addEventListener('click', function() {
+                localStorage.setItem('obsidian_ga_consent', 'granted');
+                loadGA4();
+                if (banner) banner.classList.add('hidden');
+            });
+        }
+
+        if (declineBtn) {
+            declineBtn.addEventListener('click', function() {
+                localStorage.setItem('obsidian_ga_consent', 'denied');
+                if (banner) banner.classList.add('hidden');
+            });
+        }
+    })();
+    </script>
+    {% endif %}
 </body>
 
 </html>
