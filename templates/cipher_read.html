@@ -4,87 +4,128 @@
 {% block title %}Secure Message | Obsidian Secure{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl w-full mt-12 mx-auto animate-fade-in">
+<div class="max-w-xl w-full mt-10 mx-auto animate-fade-in">
     <div class="surface-card surface-card--primary">
-        <div class="mb-8">
-            <div class="flex items-center gap-3 mb-6">
-                <div class="w-10 h-10 rounded-lg bg-sage/10 flex items-center justify-center">
-                    <span class="material-symbols-outlined text-xl text-sage" aria-hidden="true">mail_lock</span>
+        <div class="mb-6">
+            <div class="flex items-center justify-between gap-3 mb-5">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-archival-soft border border-archival-border flex items-center justify-center text-sage">
+                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">mail_lock</span>
+                    </div>
+                    <div>
+                        <h1 class="text-base font-semibold text-ink-primary">Secure Message</h1>
+                        <p class="text-xs text-ink-secondary">End-to-end encrypted communication</p>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="text-lg font-medium text-ink-primary">Secure Message</h1>
-                    <p class="text-xs text-ink-secondary">End-to-end encrypted communication</p>
+                <div class="flex items-center gap-2">
+                    <span class="crypto-badge">AES-256-GCM</span>
+                    <span class="crypto-badge crypto-badge--warning">Burn-On-Read</span>
                 </div>
             </div>
         </div>
 
         {% if expired %}
         <div class="py-8 text-center" role="status">
-            <span class="material-symbols-outlined text-4xl text-destructive/40 mb-4 block" aria-hidden="true">delete_forever</span>
-            <h3 class="text-lg font-medium text-ink-primary mb-2">Message Unavailable</h3>
-            <p class="text-sm text-ink-secondary mb-1">This message has already been read or has expired.</p>
-            <p class="text-xs text-ink-secondary/60 mb-4">Burn-after-read messages are permanently deleted after viewing.</p>
-            <p class="text-xs text-ink-secondary/80 border-t border-archival-border/20 pt-4">What you can do: Request the sender to create and share a new secure message.</p>
+            <div class="w-12 h-12 rounded-lg bg-archival-soft border border-archival-border text-ink-muted flex items-center justify-center mx-auto mb-4">
+                <span class="material-symbols-outlined text-[24px]" aria-hidden="true">delete_forever</span>
+            </div>
+            <h3 class="text-base font-semibold text-ink-primary mb-2">Message Unavailable</h3>
+            <p class="text-xs text-ink-secondary mb-3">This message has already been viewed or has expired.</p>
+            <div class="p-3 bg-archival-soft border border-archival-border rounded text-[11px] text-ink-secondary text-left">
+                <strong class="text-ink-primary font-semibold block mb-0.5">Burn-On-Read Protection</strong>
+                Burn-after-read messages are immediately and permanently erased from the server upon initial access.
+            </div>
         </div>
         {% else %}
-        
-        <!-- Encrypted payload for browser-side decryption (base64, never plaintext) -->
-        <input type="hidden" id="cipher-content" value="{{ content }}">
 
-        <div id="decrypt-prompt" class="py-6">
-            {% if alias and alias not in ['OBSIDIAN_CORE_14', 'OBSIDIAN_NODE', 'Obsidian Secure'] %}
-            <p class="text-sm text-ink-primary mb-4 font-sans">
-                Message shared by <span class="font-semibold text-sage">{{ alias }}</span>
-            </p>
-            {% else %}
-            <p class="text-sm text-ink-primary mb-4 font-sans">
-                Message shared via <span class="font-semibold text-sage">Obsidian Secure</span>
-            </p>
-            {% endif %}
-            <p class="text-sm text-ink-secondary mb-6">This message is encrypted. Click below to decrypt it in your browser.</p>
-            
-            <div id="decrypt-error" class="error-alert mb-5 hidden" role="alert">
-                <p>
-                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">error</span>
-                    <span id="decrypt-error-text">Unable to decrypt this message.</span>
+        <!-- Public ID and CSRF token for recipient-initiated atomic claim (ciphertext is fetched only on explicit claim) -->
+        <input type="hidden" id="cipher-public-id" name="public_id" value="{{ public_id }}">
+        <input type="hidden" id="cipher-csrf-token" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div id="decryption-expired-state" class="py-8 text-center hidden" role="status">
+            <div class="w-12 h-12 rounded-lg bg-archival-soft border border-archival-border text-ink-muted flex items-center justify-center mx-auto mb-4">
+                <span class="material-symbols-outlined text-[24px]" aria-hidden="true">delete_forever</span>
+            </div>
+            <h3 class="text-base font-semibold text-ink-primary mb-2">Message Unavailable</h3>
+            <p class="text-xs text-ink-secondary mb-3">This message has already been viewed or has expired.</p>
+            <div class="p-3 bg-archival-soft border border-archival-border rounded text-[11px] text-ink-secondary text-left">
+                <strong class="text-ink-primary font-semibold block mb-0.5">Burn-On-Read Protection</strong>
+                Burn-after-read messages are immediately and permanently erased from the server upon initial access.
+            </div>
+        </div>
+
+        <div id="decrypt-prompt" class="space-y-5">
+            <div class="p-3.5 bg-archival-soft border border-archival-border rounded space-y-2">
+                <div class="flex items-center justify-between text-xs">
+                    {% if alias and alias not in ['OBSIDIAN_CORE_14', 'OBSIDIAN_NODE', 'Obsidian Secure'] %}
+                    <span class="text-ink-secondary">Sender: <strong class="text-ink-primary font-medium">{{ alias }}</strong></span>
+                    {% else %}
+                    <span class="text-ink-secondary">Sender: <strong class="text-ink-primary font-medium">Obsidian Secure</strong></span>
+                    {% endif %}
+                    <span class="crypto-badge crypto-badge--warning">Single Access Only</span>
+                </div>
+                <p class="text-xs text-ink-secondary leading-relaxed pt-1 border-t border-archival-border/60">
+                    This message is stored encrypted on the server. The decryption key is extracted directly from your browser's URL fragment (<span class="font-mono text-ink-primary">#key=...</span>).
                 </p>
             </div>
 
-            <button type="button" class="btn-primary mb-5" id="decrypt-btn">
+            <div class="warning-alert" role="alert">
+                <div class="flex items-start gap-2.5">
+                    <span class="material-symbols-outlined text-[18px] text-[#C98A2C] shrink-0 mt-0.5" aria-hidden="true">local_fire_department</span>
+                    <div>
+                        <strong class="block text-xs font-semibold text-ink-primary mb-0.5">Permanent Deletion Notice</strong>
+                        <p class="text-xs text-ink-secondary">Once decrypted, this message is permanently erased from the database and cannot be reloaded.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="decrypt-error" class="error-alert hidden" role="alert">
+                <div class="flex items-start gap-2">
+                    <span class="material-symbols-outlined text-[16px] text-destructive shrink-0 mt-0.5" aria-hidden="true">error</span>
+                    <span id="decrypt-error-text" class="text-xs text-destructive">Unable to decrypt this message.</span>
+                </div>
+            </div>
+
+            <button type="button" class="btn-primary w-full py-3 flex items-center justify-center gap-2" id="decrypt-btn">
                 <span class="material-symbols-outlined text-[20px]" aria-hidden="true">lock_open</span>
-                Decrypt Message
+                <span>Decrypt &amp; Read Message</span>
             </button>
-            <p class="flex items-start gap-2 text-xs text-ink-secondary">
-                <span class="material-symbols-outlined text-[14px] mt-0.5 text-sage shrink-0" aria-hidden="true">verified_user</span>
-                Decryption happens entirely in your browser. The server never sees the plaintext.
-            </p>
+
+            <div class="pt-4 border-t border-archival-border">
+                <p class="flex items-start gap-2 text-xs text-ink-secondary">
+                    <span class="material-symbols-outlined text-[14px] mt-0.5 text-sage shrink-0" aria-hidden="true">verified_user</span>
+                    Decryption happens entirely in your browser memory. Unencrypted text is never transmitted over the network.
+                </p>
+            </div>
         </div>
 
         <div id="decrypted-content" class="hidden" role="status">
-            <div class="flex items-center gap-2 mb-4">
-                <span class="material-symbols-outlined text-sage text-[18px]" aria-hidden="true">check_circle</span>
-                <h4 class="text-sm font-medium text-ink-primary">Decrypted message</h4>
+            <div class="flex items-center justify-between gap-2 mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sage text-[18px]" aria-hidden="true">check_circle</span>
+                    <h4 class="text-xs font-semibold text-ink-primary">Decrypted Message Payload</h4>
+                </div>
+                <span class="crypto-badge crypto-badge--warning">Erased from Server</span>
             </div>
-            <div class="bg-archival-soft/40 rounded-xl p-6 mb-6 no-copy-zone select-none" id="plaintext-container">
-                <p id="plaintext-message" class="text-ink-primary font-mono whitespace-pre-wrap break-words leading-relaxed select-none"></p>
+
+            <div class="bg-archival-soft border border-archival-border rounded p-4 mb-4 select-text" id="plaintext-container">
+                <p id="plaintext-message" class="text-xs text-ink-primary font-mono whitespace-pre-wrap break-words leading-relaxed select-text"></p>
             </div>
-            
-            <div class="flex items-center gap-3 text-xs text-ink-secondary pt-4 border-t border-archival-border/30">
-                <span class="flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">local_fire_department</span>
-                    Burn-after-read enabled
+
+            <div class="flex flex-wrap items-center gap-3 text-xs text-ink-secondary pt-3 border-t border-archival-border">
+                <span class="flex items-center gap-1.5 text-sage">
+                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">lock_open</span>
+                    Decrypted locally
                 </span>
-                <span class="w-1 h-1 rounded-full bg-ink-secondary/30" aria-hidden="true"></span>
-                <span>No automatic expiry</span>
-                <span class="w-1 h-1 rounded-full bg-ink-secondary/30" aria-hidden="true"></span>
+                <span>&bull;</span>
                 {% if alias and alias not in ['OBSIDIAN_CORE_14', 'OBSIDIAN_NODE', 'Obsidian Secure'] %}
-                <span>Shared by {{ alias }}</span>
+                <span>Sender: {{ alias }}</span>
                 {% else %}
-                <span>Shared via Obsidian Secure</span>
+                <span>Sender: Obsidian Secure</span>
                 {% endif %}
             </div>
         </div>
-        
+
         {% endif %}
     </div>
 </div>

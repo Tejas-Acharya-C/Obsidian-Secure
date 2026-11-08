@@ -53,7 +53,7 @@
                         <source srcset="/static/img/logo.webp" type="image/webp">
                         <img src="/static/img/logo.png" alt="" class="h-8 w-auto object-contain" aria-hidden="true" width="32" height="32">
                     </picture>
-                    <span class="brand-text text-sm font-semibold tracking-[0.18em] text-ink-primary uppercase">Obsidian Secure</span>
+                    <span class="brand-text text-sm font-semibold text-ink-primary">Obsidian Secure</span>
                 </a>
 
                 <!-- Main Nav Links (desktop) -->
@@ -103,7 +103,7 @@
     <div id="mobile-nav-backdrop" class="mobile-nav-backdrop" aria-hidden="true"></div>
     <aside id="mobile-nav-panel" class="mobile-nav-panel" role="dialog" aria-label="Navigation menu" aria-hidden="true">
         <div class="flex items-center justify-between gap-3">
-            <a href="/" class="text-base font-semibold text-ink-primary">Obsidian Secure</a>
+            <a href="/" class="min-h-[44px] flex items-center text-base font-semibold text-ink-primary">Obsidian Secure</a>
             <button type="button" id="mobile-nav-close" class="btn-icon" aria-label="Close navigation menu">
                 <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
             </button>
@@ -116,7 +116,7 @@
             <a href="/settings" class="text-ink-primary" {% if current_page == 'settings' %}aria-current="page"{% endif %}>Settings</a>
             <form action="/logout" method="POST" class="m-0 p-0">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="text-ink-primary">Sign out</button>
+                <button type="submit" class="text-ink-primary min-h-[44px] w-full text-left flex items-center">Sign out</button>
             </form>
         </nav>
     </aside>
@@ -128,7 +128,7 @@
                     <source srcset="/static/img/logo.webp" type="image/webp">
                     <img src="/static/img/logo.png" alt="" class="h-9 w-auto object-contain" aria-hidden="true" width="36" height="36">
                 </picture>
-                <span class="brand-text text-sm font-semibold tracking-[0.18em] text-ink-primary uppercase">Obsidian Secure</span>
+                <span class="brand-text text-sm font-semibold text-ink-primary">Obsidian Secure</span>
             </a>
             <div class="flex items-center gap-3">
                 <button id="mobile-nav-toggle" class="btn-icon mobile-nav-toggle" aria-label="Open navigation menu" aria-controls="mobile-nav-panel" aria-expanded="false">
@@ -142,7 +142,7 @@
     <div id="mobile-nav-backdrop" class="mobile-nav-backdrop" aria-hidden="true"></div>
     <aside id="mobile-nav-panel" class="mobile-nav-panel" role="dialog" aria-label="Navigation menu" aria-hidden="true">
         <div class="flex items-center justify-between gap-3">
-            <a href="/" class="text-base font-semibold text-ink-primary">Obsidian Secure</a>
+            <a href="/" class="min-h-[44px] flex items-center text-base font-semibold text-ink-primary">Obsidian Secure</a>
             <button type="button" id="mobile-nav-close" class="btn-icon" aria-label="Close navigation menu">
                 <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
             </button>

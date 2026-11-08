@@ -2,8 +2,9 @@ services:
   - type: web
     name: obsidian-secure
     env: python
+    plan: starter
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn -w 1 --threads 8 --worker-class gthread app:app
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -16,7 +17,7 @@ services:
       - key: PERSISTENT_DISK_PATH
         value: /var/lib/obsidian/data
       - key: PUBLIC_BASE_URL
-        value: https://obsidian-secure-ootw.onrender.com
+        sync: false
     disk:
       name: obsidian-data
       mountPath: /var/lib/obsidian/data
@@ -24,4 +25,5 @@ services:
 
 databases:
   - name: obsidian-db
-    plan: free
+    plan: 0.1c-256mb
+    postgresMajorVersion: "17"

@@ -1,0 +1,173 @@
+{% set body_class = "receiver-page" %}
+{% extends "base.html" %}
+
+{% block title %}Download Secure Collection | Obsidian Secure{% endblock %}
+
+{% block content %}
+<div class="max-w-md w-full mt-10 animate-fade-in mx-auto">
+    <div class="surface-card surface-card--primary">
+        <div class="mb-6">
+            <div class="flex items-center justify-between gap-3 mb-5">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-archival-soft border border-archival-border flex items-center justify-center text-sage">
+                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">folder_zip</span>
+                    </div>
+                    <div>
+                        <h1 class="text-base font-semibold text-ink-primary">Secure Collection</h1>
+                        <p class="text-xs text-ink-secondary">End-to-end encrypted archive</p>
+                    </div>
+                </div>
+                <span class="crypto-badge">AES-256-GCM</span>
+            </div>
+
+            {% if not expired and not revoked and not not_found and not file_unavailable %}
+            <div class="mb-5 p-3.5 bg-archival-soft border border-archival-border rounded">
+                <div class="flex items-center justify-between gap-2 mb-1.5">
+                    <h3 class="text-xs font-semibold text-ink-primary">
+                        Package Manifest ({{ files|length }} {{ 'file' if files|length == 1 else 'files' }})
+                    </h3>
+                    <span class="text-xs font-mono font-medium text-ink-primary tabular-nums">
+                        {% set total_b = collection.total_size %}
+                        {% if total_b >= 1048576 %}
+                            {{ (total_b / (1024 * 1024))|round(1) }} MB
+                        {% else %}
+                            {{ (total_b / 1024)|round(1) }} KB
+                        {% endif %}
+                    </span>
+                </div>
+
+                {% if alias and alias not in ['OBSIDIAN_CORE_14', 'OBSIDIAN_NODE', 'Obsidian Secure'] %}
+                <p class="text-xs text-ink-secondary mb-2">Sender: <span class="text-ink-primary font-medium">{{ alias }}</span></p>
+                {% else %}
+                <p class="text-xs text-ink-secondary mb-2">Sender: <span class="text-ink-primary font-medium">Obsidian Secure</span></p>
+                {% endif %}
+
+                <div class="flex items-center gap-2 text-[11px] text-ink-muted border-t border-archival-border/60 pt-2">
+                    <span class="material-symbols-outlined text-[14px] text-sage shrink-0" aria-hidden="true">schedule</span>
+                    {% if collection.expiry_time %}
+                    <span>Expires: <strong class="text-ink-primary font-normal tabular-nums">{{ collection.expiry_time.strftime('%b %d, %Y %H:%M UTC') }}</strong></span>
+                    {% else %}
+                    <span>Expiry: <strong class="text-ink-primary font-normal">No automatic expiry</strong></span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Collection Files Manifest (No individual downloads) -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between text-[11px] font-semibold text-ink-muted mb-2">
+                    <span>Archived Files</span>
+                    <span>Client Encrypted</span>
+                </div>
+                <div class="bg-archival-soft border border-archival-border rounded divide-y divide-archival-border/50 max-h-56 overflow-y-auto">
+                    {% for f in files %}
+                    <div class="p-2.5 flex items-center justify-between gap-3 text-xs">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="material-symbols-outlined text-[16px] text-sage shrink-0" aria-hidden="true">description</span>
+                            <span class="text-ink-primary font-mono truncate" title="{{ f.original_name }}">{{ f.original_name }}</span>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0 text-ink-secondary text-[11px] tabular-nums">
+                            <span>
+                                {% if f.file_size >= 1048576 %}
+                                    {{ (f.file_size / (1024 * 1024))|round(1) }} MB
+                                {% else %}
+                                    {{ (f.file_size / 1024)|round(1) }} KB
+                                {% endif %}
+                            </span>
+                            <span class="material-symbols-outlined text-[14px] text-sage" aria-hidden="true" title="Encrypted with unique IV">lock</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if not_found %}
+        <div class="py-8 text-center" role="status">
+            <div class="w-12 h-12 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-center justify-center mx-auto mb-4">
+                <span class="material-symbols-outlined text-[24px]" aria-hidden="true">search_off</span>
+            </div>
+            <h3 class="text-base font-semibold text-ink-primary mb-2">Collection Not Found</h3>
+            <p class="text-xs text-ink-secondary mb-1">The requested sharing link does not exist or was not completed.</p>
+            <p class="text-[11px] text-ink-muted">Verify the link URL or request the sender to generate a new package.</p>
+        </div>
+        {% elif revoked %}
+        <div class="py-8 text-center" role="status">
+            <div class="w-12 h-12 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-center justify-center mx-auto mb-4">
+                <span class="material-symbols-outlined text-[24px]" aria-hidden="true">block</span>
+            </div>
+            <h3 class="text-base font-semibold text-ink-primary mb-2">Collection Revoked</h3>
+            <p class="text-xs text-ink-secondary mb-1">The sender has revoked access to this collection.</p>
+            <p class="text-[11px] text-ink-muted">All associated encrypted payload blobs have been purged from storage.</p>
+        </div>
+        {% elif expired %}
+        <div class="py-8 text-center" role="status">
+            <div class="w-12 h-12 rounded-lg bg-archival-soft border border-archival-border text-ink-muted flex items-center justify-center mx-auto mb-4">
+                <span class="material-symbols-outlined text-[24px]" aria-hidden="true">schedule</span>
+            </div>
+            <h3 class="text-base font-semibold text-ink-primary mb-2">Collection Expired</h3>
+            <p class="text-xs text-ink-secondary mb-3">This collection has exceeded its validity period and was automatically cleaned up.</p>
+            <div class="p-3 bg-archival-soft border border-archival-border rounded text-[11px] text-ink-secondary text-left">
+                <strong class="text-ink-primary font-semibold block mb-0.5">Next steps</strong>
+                Contact the sender to request a freshly encrypted sharing link.
+            </div>
+        </div>
+        {% elif file_unavailable %}
+        <div class="py-8 text-center" role="status">
+            <div class="w-12 h-12 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-center justify-center mx-auto mb-4">
+                <span class="material-symbols-outlined text-[24px]" aria-hidden="true">cloud_off</span>
+            </div>
+            <h3 class="text-base font-semibold text-ink-primary mb-2">Payload Temporarily Unavailable</h3>
+            <p class="text-xs text-ink-secondary mb-3">One or more collection files could not be retrieved from the storage backend.</p>
+            <div class="p-3 bg-archival-soft border border-archival-border rounded text-[11px] text-ink-secondary text-left">
+                <strong class="text-ink-primary font-semibold block mb-0.5">Next steps</strong>
+                Ask the sender to re-upload and provide a fresh share link.
+            </div>
+        </div>
+        {% else %}
+
+        <!-- Download Error Banner -->
+        <div id="collection-error" class="error-alert mb-6 hidden" role="alert">
+            <div class="flex items-start gap-2">
+                <span class="material-symbols-outlined text-[16px] text-destructive shrink-0 mt-0.5" aria-hidden="true">error</span>
+                <div class="text-xs text-destructive flex-1">
+                    <span id="collection-error-text">Unable to process collection.</span>
+                    <button type="button" id="collection-retry-btn" class="mt-2 block underline font-medium hover:text-destructive/80 hidden">Retry Download</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Download & ZIP Progress Panel -->
+        <div id="collection-progress" class="mb-6 bg-archival-soft border border-archival-border p-3.5 rounded hidden" role="status" aria-live="polite">
+            <div class="flex items-center justify-between gap-3 mb-2">
+                <span id="collection-progress-label" class="text-xs font-semibold text-ink-primary truncate">Preparing download...</span>
+                <span id="collection-progress-percent" class="text-xs font-semibold text-sage font-mono tabular-nums">0%</span>
+            </div>
+            <div class="upload-progress-shell mb-2" aria-hidden="true">
+                <div id="collection-progress-bar" class="upload-progress-fill" style="width: 0%;"></div>
+            </div>
+            <p id="collection-progress-sub" class="text-[11px] text-ink-secondary">Decrypting in browser...</p>
+        </div>
+
+        <!-- Single Prominent Action: ZIP-Only Download -->
+        <button type="button" id="download-zip-btn" data-public-id="{{ collection.public_id }}" class="btn-primary w-full py-3 mb-6 flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">folder_zip</span>
+            <span id="download-zip-label">Download All as ZIP</span>
+        </button>
+
+        <div class="pt-4 border-t border-archival-border space-y-2">
+            <p class="flex items-start gap-2 text-xs text-ink-secondary">
+                <span class="material-symbols-outlined text-[14px] mt-0.5 text-sage shrink-0" aria-hidden="true">verified_user</span>
+                Decryption and ZIP creation happen entirely in your browser. Plaintext files are never transmitted to or created on the server.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/crypto.js"></script>
+<script src="/static/js/jszip.min.js"></script>
+{{ super() }}
+{% endblock %}

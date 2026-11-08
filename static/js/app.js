@@ -281,49 +281,159 @@ const ObsidianSecure = (() => {
     }
 
     function prependShareRow(share) {
-        const list = document.getElementById('active-shares-list');
+        const tableBody = document.getElementById('shares-table-body');
+        const cardsContainer = document.getElementById('shares-cards-container');
+        const legacyList = document.getElementById('active-shares-list');
         const panel = document.getElementById('active-shares-panel');
         const emptyState = document.getElementById('active-shares-empty');
-        if (!list || !panel || !share || !share.public_url) return;
+        if (!share || !share.public_url) return;
+        if (!tableBody && !cardsContainer && !legacyList) return;
 
         emptyState?.classList.add('hidden');
-        panel.classList.remove('hidden');
+        panel?.classList.remove('hidden');
 
-        const wrapper = document.createElement('div');
-        wrapper.className = 'flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-archival-soft border border-archival-border rounded hover:border-sage/40 transition-colors gap-3 group';
-        wrapper.innerHTML = `
-            <div class="min-w-0 flex-1">
-                <h4 class="text-xs font-semibold text-ink-primary mb-1 truncate group-hover:text-sage transition-colors">${escapeHtml(share.original_name || 'Shared file')}</h4>
-                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-muted">
-                    <span class="flex items-center gap-1.5 text-sage font-semibold">
-                        <span class="w-1.5 h-1.5 bg-sage rounded-full"></span>
+        const uploadDate = share.upload_time ? new Date(share.upload_time) : new Date();
+        const uploadEpoch = uploadDate.getTime();
+        const uploadIso = uploadDate.toISOString();
+        const expiryDate = share.expiry_time ? new Date(share.expiry_time) : null;
+        const expiryEpoch = expiryDate ? expiryDate.getTime() : 0;
+        const expiryIso = expiryDate ? expiryDate.toISOString() : '';
+        const nameEscaped = escapeHtml(share.original_name || 'Shared file');
+        const mimeEscaped = escapeHtml(share.mime_type || 'encrypted payload');
+        const iconName = share.is_collection ? 'folder_zip' : 'description';
+
+        if (tableBody) {
+            const tr = document.createElement('tr');
+            tr.className = 'share-item-row group';
+            tr.dataset.name = (share.original_name || '').toLowerCase();
+            tr.dataset.upload = uploadIso;
+            tr.dataset.expiry = expiryIso;
+            tr.dataset.uploadEpoch = String(uploadEpoch);
+            tr.dataset.expiryEpoch = String(expiryEpoch);
+            tr.innerHTML = `
+                <td class="col-file">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] text-sage shrink-0" aria-hidden="true">${iconName}</span>
+                        <div class="min-w-0">
+                            <div class="share-filename-primary truncate title-cell" title="${nameEscaped}">${nameEscaped}</div>
+                            <div class="share-mime-secondary truncate">${mimeEscaped}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="col-security">
+                    <div class="flex items-center justify-center gap-1.5">
+                        <span class="material-symbols-outlined text-[15px] text-sage shrink-0" aria-hidden="true">lock</span>
+                        <span class="badge-security-standard">Standard</span>
+                    </div>
+                </td>
+                <td class="col-created text-ink-secondary text-[11px]">Just now</td>
+                <td class="col-expiration text-ink-secondary text-[11px]">
+                    <span class="expiry-countdown block font-mono text-[11px]" data-expiry-time="${escapeHtml(expiryIso)}"></span>
+                </td>
+                <td class="col-accesses text-ink-secondary text-[11px]">
+                    <span class="font-semibold text-ink-primary text-xs">0</span>
+                    <span class="text-ink-muted text-[10px] block">accesses</span>
+                </td>
+                <td class="col-status status-cell">
+                    <span class="status-badge inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-sage/10 text-sage border border-sage/20">
+                        <span class="w-1.5 h-1.5 rounded-full bg-sage"></span>
                         <span>Active</span>
                     </span>
-                    <span class="w-1 h-1 rounded-full bg-archival-border hidden sm:block" aria-hidden="true"></span>
-                    <span class="text-ink-secondary hidden sm:inline">Uploaded ${escapeHtml(formatUtcLabel(share.upload_time))} UTC</span>
-                    <span class="w-1 h-1 rounded-full bg-archival-border hidden sm:block" aria-hidden="true"></span>
-                    <span class="text-ink-secondary expiry-countdown" data-expiry-time="${escapeHtml(share.expiry_time || '')}"></span>
-                    <span class="w-1 h-1 rounded-full bg-archival-border" aria-hidden="true"></span>
-                    <span class="text-ink-secondary">0 opens</span>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
-                <button type="button" data-copy-url="${escapeHtml(share.public_url)}" class="btn-secondary py-1 px-3 text-[11px] min-h-[44px] sm:min-h-[32px]" aria-label="Copy link for ${escapeHtml(share.original_name || 'shared file')}">
-                    Copy link
-                </button>
-                <form action="/revoke" method="POST" class="inline">
-                    <input type="hidden" name="csrf_token" value="${escapeHtml(getCSRFToken())}">
-                    <input type="hidden" name="public_url" value="${escapeHtml(share.public_url)}">
-                    <button type="submit" class="btn-destructive py-1 px-3 text-[11px] min-h-[44px] sm:min-h-[32px] hover:bg-destructive/10" aria-label="Revoke access to ${escapeHtml(share.original_name || 'shared file')}">
-                        Revoke
-                    </button>
-                </form>
-            </div>
-        `;
+                </td>
+                <td class="col-actions">
+                    <form action="/revoke" method="POST" class="inline confirm-destructive">
+                        <input type="hidden" name="csrf_token" value="${escapeHtml(getCSRFToken())}">
+                        <input type="hidden" name="public_url" value="${escapeHtml(share.public_url)}">
+                        <button type="submit" class="btn-destructive py-1.5 px-3 text-[11px] min-h-[32px] hover:bg-destructive/10 inline-flex items-center justify-center gap-1" aria-label="Revoke access to ${nameEscaped}">
+                            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">delete</span>
+                            <span>Revoke</span>
+                        </button>
+                    </form>
+                </td>
+            `;
+            tableBody.prepend(tr);
+        }
 
-        list.prepend(wrapper);
-        bindCopyUrlButton(wrapper.querySelector('[data-copy-url]'));
+        if (cardsContainer) {
+            const card = document.createElement('div');
+            card.className = 'share-item-card bg-archival-soft border border-archival-border rounded-lg p-4 space-y-3';
+            card.dataset.name = (share.original_name || '').toLowerCase();
+            card.dataset.upload = uploadIso;
+            card.dataset.expiry = expiryIso;
+            card.dataset.uploadEpoch = String(uploadEpoch);
+            card.dataset.expiryEpoch = String(expiryEpoch);
+            card.innerHTML = `
+                <div class="flex items-start justify-between gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] text-sage shrink-0" aria-hidden="true">${iconName}</span>
+                        <div class="min-w-0">
+                            <h4 class="text-xs font-semibold text-ink-primary truncate title-cell">${nameEscaped}</h4>
+                            <div class="text-[10px] text-ink-muted font-mono">${mimeEscaped}</div>
+                        </div>
+                    </div>
+                    <span class="status-cell shrink-0">
+                        <span class="status-badge inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-sage/10 text-sage border border-sage/20">
+                            <span class="w-1.5 h-1.5 rounded-full bg-sage"></span>
+                            <span>Active</span>
+                        </span>
+                    </span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-[11px] py-2 border-y border-archival-border/40 text-ink-secondary">
+                    <div><span class="text-ink-muted text-[10px] block">Created</span><span>Just now</span></div>
+                    <div><span class="text-ink-muted text-[10px] block">Expiration</span><span class="expiry-countdown font-mono text-[11px]" data-expiry-time="${escapeHtml(expiryIso)}"></span></div>
+                    <div><span class="text-ink-muted text-[10px] block">Accesses</span><span class="font-semibold text-ink-primary">0</span> accesses</div>
+                    <div><span class="text-ink-muted text-[10px] block">Security</span><span>Standard</span></div>
+                </div>
+                <div class="pt-1">
+                    <form action="/revoke" method="POST" class="w-full confirm-destructive">
+                        <input type="hidden" name="csrf_token" value="${escapeHtml(getCSRFToken())}">
+                        <input type="hidden" name="public_url" value="${escapeHtml(share.public_url)}">
+                        <button type="submit" class="btn-destructive w-full py-2 px-3 text-xs min-h-[44px] justify-center hover:bg-destructive/10 inline-flex items-center gap-1.5" aria-label="Revoke access to ${nameEscaped}">
+                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
+                            <span>Revoke</span>
+                        </button>
+                    </form>
+                </div>
+            `;
+            cardsContainer.prepend(card);
+        }
+
+        if (legacyList) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-archival-soft border border-archival-border rounded hover:border-sage/40 transition-colors gap-3 group';
+            wrapper.innerHTML = `
+                <div class="min-w-0 flex-1">
+                    <h4 class="text-xs font-semibold text-ink-primary mb-1 truncate group-hover:text-sage transition-colors">${nameEscaped}</h4>
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-muted">
+                        <span class="flex items-center gap-1.5 text-sage font-semibold">
+                            <span class="w-1.5 h-1.5 bg-sage rounded-full"></span>
+                            <span>Active</span>
+                        </span>
+                        <span class="w-1 h-1 rounded-full bg-archival-border hidden sm:block" aria-hidden="true"></span>
+                        <span class="text-ink-secondary hidden sm:inline">Uploaded Just now</span>
+                        <span class="w-1 h-1 rounded-full bg-archival-border hidden sm:block" aria-hidden="true"></span>
+                        <span class="text-ink-secondary expiry-countdown" data-expiry-time="${escapeHtml(expiryIso)}"></span>
+                        <span class="w-1 h-1 rounded-full bg-archival-border" aria-hidden="true"></span>
+                        <span class="text-ink-secondary">0 accesses</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
+                    <button type="button" data-copy-url="${escapeHtml(share.public_url)}" class="btn-secondary py-1 px-3 text-[11px] min-h-[44px] sm:min-h-[32px]" aria-label="Copy link for ${nameEscaped}">Copy link</button>
+                    <form action="/revoke" method="POST" class="inline confirm-destructive">
+                        <input type="hidden" name="csrf_token" value="${escapeHtml(getCSRFToken())}">
+                        <input type="hidden" name="public_url" value="${escapeHtml(share.public_url)}">
+                        <button type="submit" class="btn-destructive py-1 px-3 text-[11px] min-h-[44px] sm:min-h-[32px] hover:bg-destructive/10" aria-label="Revoke access to ${nameEscaped}">Revoke</button>
+                    </form>
+                </div>
+            `;
+            legacyList.prepend(wrapper);
+            bindCopyUrlButton(wrapper.querySelector('[data-copy-url]'));
+        }
+
         refreshExpiryCountdowns();
+        try {
+            window.dispatchEvent(new CustomEvent('obsidian:share-created', { detail: share }));
+        } catch (_) {}
     }
 
     // --- Mobile Navigation ---
@@ -448,6 +558,183 @@ const ObsidianSecure = (() => {
         });
     }
 
+    // --- Multi-File Staging and Validation Constants ---
+    const MAX_COLLECTION_FILES = 10;
+    const MAX_COLLECTION_SIZE = 50 * 1024 * 1024; // 50 MB
+    let stagedFiles = [];
+
+    function formatBytes(bytes) {
+        if (bytes >= 1048576) {
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+        return (bytes / 1024).toFixed(1) + ' KB';
+    }
+
+    function renderStagedFiles() {
+        const panel = document.getElementById('staged-files-panel');
+        const list = document.getElementById('staged-files-list');
+        const countSpan = document.getElementById('staged-count');
+        const totalSizeSpan = document.getElementById('staged-total-size');
+        const errorDiv = document.getElementById('staged-validation-error');
+        const actionContainer = document.getElementById('staged-action-buttons');
+
+        if (!panel || !list) return;
+
+        if (stagedFiles.length === 0) {
+            panel.classList.add('hidden');
+            list.innerHTML = '';
+            if (errorDiv) errorDiv.classList.add('hidden');
+            return;
+        }
+
+        panel.classList.remove('hidden');
+
+        const totalBytes = stagedFiles.reduce((acc, f) => acc + f.size, 0);
+        if (countSpan) countSpan.textContent = stagedFiles.length;
+        if (totalSizeSpan) totalSizeSpan.textContent = `${formatBytes(totalBytes)} / 50 MB`;
+
+        // Validation
+        let errorMsg = '';
+        if (stagedFiles.length > MAX_COLLECTION_FILES) {
+            errorMsg = `Maximum ${MAX_COLLECTION_FILES} files allowed per collection. Please remove ${stagedFiles.length - MAX_COLLECTION_FILES} file(s).`;
+        } else if (totalBytes > MAX_COLLECTION_SIZE) {
+            errorMsg = `Total collection size exceeds 50 MB limit (${formatBytes(totalBytes)} selected). Please remove some files.`;
+        }
+
+        if (errorDiv) {
+            if (errorMsg) {
+                errorDiv.textContent = errorMsg;
+                errorDiv.classList.remove('hidden');
+            } else {
+                errorDiv.classList.add('hidden');
+            }
+        }
+
+        // Render file list
+        list.innerHTML = '';
+        stagedFiles.forEach((file, index) => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center justify-between p-2 bg-archival-bg border border-archival-border/60 rounded text-xs gap-2 group';
+            row.innerHTML = `
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="material-symbols-outlined text-[16px] text-sage shrink-0" aria-hidden="true">description</span>
+                    <span class="font-mono text-ink-primary truncate" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+                    <span class="text-ink-muted text-[11px] shrink-0 font-mono">(${formatBytes(file.size)})</span>
+                </div>
+                <button type="button" class="text-ink-muted hover:text-destructive p-1 rounded transition-colors shrink-0 remove-file-btn" data-index="${index}" aria-label="Remove ${escapeHtml(file.name)}">
+                    <span class="material-symbols-outlined text-[16px]">close</span>
+                </button>
+            `;
+            list.appendChild(row);
+        });
+
+        list.querySelectorAll('.remove-file-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(btn.dataset.index, 10);
+                removeStagedFile(idx);
+            });
+        });
+
+        // Render action buttons
+        if (actionContainer) {
+            const hasError = !!errorMsg;
+            if (stagedFiles.length === 1) {
+                actionContainer.innerHTML = `
+                    <button type="button" id="start-single-upload-btn" class="btn-secondary py-1.5 px-3 text-xs inline-flex items-center gap-1 font-medium" ${hasError ? 'disabled' : ''}>
+                        <span class="material-symbols-outlined text-[14px]">file_upload</span>
+                        <span>Share Single File</span>
+                    </button>
+                    <button type="button" id="start-collection-upload-btn" class="btn-primary py-1.5 px-3.5 text-xs inline-flex items-center gap-1.5 font-medium" ${hasError ? 'disabled' : ''}>
+                        <span class="material-symbols-outlined text-[14px]">folder_zip</span>
+                        <span>Share as ZIP Collection</span>
+                    </button>
+                `;
+            } else {
+                actionContainer.innerHTML = `
+                    <button type="button" id="start-collection-upload-btn" class="btn-primary py-2 px-4 text-xs inline-flex items-center gap-1.5 font-medium" ${hasError ? 'disabled' : ''}>
+                        <span class="material-symbols-outlined text-[16px]">lock</span>
+                        <span>Encrypt &amp; Share Collection (${stagedFiles.length} files as ZIP)</span>
+                    </button>
+                `;
+            }
+
+            const singleBtn = document.getElementById('start-single-upload-btn');
+            if (singleBtn) {
+                singleBtn.addEventListener('click', () => {
+                    if (stagedFiles.length > 0 && !uploadInProgress) {
+                        uploadSingleFile(stagedFiles[0]);
+                    }
+                });
+            }
+
+            const collectionBtn = document.getElementById('start-collection-upload-btn');
+            if (collectionBtn) {
+                collectionBtn.addEventListener('click', () => {
+                    if (stagedFiles.length > 0 && !uploadInProgress) {
+                        uploadCollection(stagedFiles);
+                    }
+                });
+            }
+        }
+    }
+
+    function addFilesToStaging(fileList) {
+        if (!fileList || fileList.length === 0) return;
+
+        let addedCount = 0;
+        let duplicateCount = 0;
+
+        for (let i = 0; i < fileList.length; i++) {
+            const file = fileList[i];
+
+            // Prevent duplicate selection (same name and size)
+            const isDup = stagedFiles.some(f => f.name === file.name && f.size === file.size && f.lastModified === file.lastModified);
+            if (isDup) {
+                duplicateCount++;
+                continue;
+            }
+
+            if (file.size === 0) {
+                showToast(`"${file.name}" is empty (0 bytes) and was skipped.`, 'info');
+                continue;
+            }
+
+            if (file.size > MAX_COLLECTION_SIZE) {
+                showToast(`"${file.name}" exceeds the 50MB limit and was skipped.`, 'error');
+                continue;
+            }
+
+            if (stagedFiles.length >= MAX_COLLECTION_FILES) {
+                showToast(`Maximum limit of ${MAX_COLLECTION_FILES} files reached.`, 'error');
+                break;
+            }
+
+            stagedFiles.push(file);
+            addedCount++;
+        }
+
+        if (duplicateCount > 0 && addedCount === 0) {
+            showToast(`${duplicateCount} duplicate file(s) already in selection.`, 'info');
+        }
+
+        renderStagedFiles();
+    }
+
+    function removeStagedFile(index) {
+        if (index >= 0 && index < stagedFiles.length) {
+            stagedFiles.splice(index, 1);
+            renderStagedFiles();
+        }
+    }
+
+    function clearStagedFiles() {
+        stagedFiles = [];
+        const fileInput = document.getElementById('file-upload');
+        if (fileInput) fileInput.value = '';
+        renderStagedFiles();
+    }
+
     // --- Dropzone ---
     function initDropzone() {
         const dropzone = document.getElementById('dropzone');
@@ -463,6 +750,9 @@ const ObsidianSecure = (() => {
                 fileInput.click();
             }
         });
+
+        document.getElementById('add-more-files-btn')?.addEventListener('click', () => fileInput.click());
+        document.getElementById('clear-staged-btn')?.addEventListener('click', clearStagedFiles);
 
         ['dragenter', 'dragover'].forEach((eventName) => {
             dropzone.addEventListener(eventName, (event) => {
@@ -527,10 +817,7 @@ const ObsidianSecure = (() => {
             await Promise.all(tasks);
 
             if (filesArray.length > 0) {
-                const dataTransfer = new DataTransfer();
-                filesArray.forEach((file) => dataTransfer.items.add(file));
-                fileInput.files = dataTransfer.files;
-                fileInput.dispatchEvent(new Event('change'));
+                addFilesToStaging(filesArray);
             }
         });
     }
@@ -539,126 +826,282 @@ const ObsidianSecure = (() => {
     function initUploadFlow() {
         const uploadForm = document.getElementById('uploadForm');
         const fileInput = document.getElementById('file-upload');
-        const progressPanel = document.getElementById('upload-progress');
         if (!uploadForm || !fileInput) return;
 
-        fileInput.addEventListener('change', async () => {
-            const files = fileInput.files;
+        fileInput.addEventListener('change', () => {
+            const files = Array.from(fileInput.files);
             if (files.length === 0 || uploadInProgress) return;
+            addFilesToStaging(files);
+            fileInput.value = ''; // Allow selecting the same file again if removed
+        });
+    }
 
-            let totalSize = 0;
-            for (let index = 0; index < files.length; index += 1) {
-                totalSize += files[index].size;
-            }
+    async function uploadSingleFile(fileToEncrypt) {
+        if (!fileToEncrypt || uploadInProgress) return;
 
-            const maxSize = 100 * 1024 * 1024;
-            if (totalSize > maxSize) {
-                showToast(`Payload exceeds the maximum allowed limit of 100MB (Selected: ${(totalSize / (1024 * 1024)).toFixed(2)}MB). Please select a smaller file.`, 'error');
-                fileInput.value = '';
-                return;
-            }
+        const progressPanel = document.getElementById('upload-progress');
+        const displayFileName = fileToEncrypt.name;
 
-            uploadInProgress = true;
+        uploadInProgress = true;
+        setDropzoneBusyState(displayFileName);
+        document.getElementById('staged-files-panel')?.classList.add('hidden');
+        progressPanel?.classList.remove('hidden');
+        resetUploadProgressUI();
+        updateUploadStage('Preparing upload', 5);
 
-            const fileToEncrypt = files[0];
-            const displayFileName = fileToEncrypt.name;
+        setUploadStep('select');
+        await sleep(300);
 
-            setDropzoneBusyState(displayFileName);
-            progressPanel?.classList.remove('hidden');
-            resetUploadProgressUI();
-            updateUploadStage('Preparing upload', 5);
+        try {
+            setUploadStep('encrypt');
 
-            setUploadStep('select');
-            await sleep(300);
+            const key = await generateKey();
+            const exportedKey = await exportKey(key);
 
-            try {
-                setUploadStep('encrypt');
+            const csrfToken = getCSRFToken();
+            const originalNameB64 = btoa(unescape(encodeURIComponent(displayFileName)));
+            const mimeType = fileToEncrypt.type || 'application/octet-stream';
 
-                const key = await generateKey();
-                const exportedKey = await exportKey(key);
+            updateUploadStage('Encrypting locally...', 50);
+            updateProgressText('encrypt-percent', 100);
+            updateLinearProgress('encrypt-progress-bar', 100);
 
-                const csrfToken = getCSRFToken();
-                const originalNameB64 = btoa(unescape(encodeURIComponent(displayFileName)));
-                const mimeType = fileToEncrypt.type || 'application/octet-stream';
+            const encryptedBlob = await encryptFile(fileToEncrypt, key);
 
-                updateUploadStage('Encrypting locally...', 50);
-                updateProgressText('encrypt-percent', 100);
-                updateLinearProgress('encrypt-progress-bar', 100);
-                
-                const encryptedBlob = await encryptFile(fileToEncrypt, key);
+            setUploadStep('upload');
+            updateUploadStage('Uploading encrypted file...', 0);
 
-                setUploadStep('upload');
-                updateUploadStage('Uploading encrypted file...', 0);
+            const formData = new FormData();
+            formData.append('file', encryptedBlob, displayFileName);
 
-                const formData = new FormData();
-                formData.append('file', encryptedBlob, displayFileName);
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/v2/upload', true);
+            xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+            xhr.setRequestHeader('X-Original-Name', originalNameB64);
+            xhr.setRequestHeader('X-Mime-Type', mimeType);
 
-                const xhr = new XMLHttpRequest();
-                xhr.open('POST', '/api/v2/upload', true);
-                xhr.setRequestHeader('X-CSRF-Token', csrfToken);
-                xhr.setRequestHeader('X-Original-Name', originalNameB64);
-                xhr.setRequestHeader('X-Mime-Type', mimeType);
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const uploadPercent = Math.round((e.loaded / e.total) * 100);
+                    updateProgressText('upload-percent', uploadPercent);
+                    updateLinearProgress('upload-progress-bar', uploadPercent);
+                    updateUploadStage('Uploading encrypted file...', uploadPercent);
+                }
+            };
 
-                xhr.upload.onprogress = (e) => {
-                    if (e.lengthComputable) {
-                        const uploadPercent = Math.round((e.loaded / e.total) * 100);
-                        updateProgressText('upload-percent', uploadPercent);
-                        updateLinearProgress('upload-progress-bar', uploadPercent);
-                        updateUploadStage('Uploading encrypted file...', uploadPercent);
-                    }
-                };
-
-                xhr.onload = () => {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        const payload = JSON.parse(xhr.responseText);
-                        if (payload.status !== 'success') {
-                            uploadInProgress = false;
-                            restoreDropzoneState();
-                            showToast(payload.error || 'Upload failed', 'error');
-                            return;
-                        }
-
-                        setUploadStep('link');
-                        updateUploadStage('Share created', 100);
-
-                        const shareUrl = appendKeyToUrl(payload.public_url, exportedKey);
-                        revealUploadSuccess(shareUrl);
-                        prependShareRow({
-                            original_name: payload.share?.original_name || displayFileName,
-                            public_url: shareUrl,
-                            upload_time: payload.share?.upload_time,
-                            expiry_time: payload.share?.expiry_time
-                        });
-
-                        showToast('Share created successfully');
-                        fileInput.value = '';
-                        restoreDropzoneState();
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    const payload = JSON.parse(xhr.responseText);
+                    if (payload.status !== 'success') {
                         uploadInProgress = false;
+                        restoreDropzoneState();
+                        document.getElementById('staged-files-panel')?.classList.remove('hidden');
+                        showToast(payload.error || 'Upload failed', 'error');
+                        return;
+                    }
+
+                    setUploadStep('link');
+                    updateUploadStage('Share created', 100);
+
+                    const shareUrl = appendKeyToUrl(payload.public_url, exportedKey);
+                    revealUploadSuccess(shareUrl);
+                    prependShareRow({
+                        original_name: payload.share?.original_name || displayFileName,
+                        public_url: shareUrl,
+                        upload_time: payload.share?.upload_time,
+                        expiry_time: payload.share?.expiry_time
+                    });
+
+                    showToast('Share created successfully');
+                    clearStagedFiles();
+                    restoreDropzoneState();
+                    uploadInProgress = false;
+                } else {
+                    if (xhr.status === 413) {
+                        showToast('File exceeds the maximum server upload limit.', 'error');
                     } else {
-                        if (xhr.status === 413) {
-                            showToast('File exceeds the maximum server upload limit.', 'error');
-                        } else {
-                            showToast(`Upload failed with status ${xhr.status}`, 'error');
-                        }
-                        uploadInProgress = false;
-                        restoreDropzoneState();
+                        showToast(`Upload failed with status ${xhr.status}`, 'error');
                     }
-                };
-
-                xhr.onerror = () => {
                     uploadInProgress = false;
                     restoreDropzoneState();
-                    showToast('Network error during upload', 'error');
-                };
+                    document.getElementById('staged-files-panel')?.classList.remove('hidden');
+                }
+            };
 
-                xhr.send(formData);
-            } catch (error) {
+            xhr.onerror = () => {
                 uploadInProgress = false;
                 restoreDropzoneState();
-                console.error(error);
-                showToast(error.message || 'Encryption failed. Please try again.', 'error');
+                document.getElementById('staged-files-panel')?.classList.remove('hidden');
+                showToast('Network error during upload', 'error');
+            };
+
+            xhr.send(formData);
+        } catch (error) {
+            uploadInProgress = false;
+            restoreDropzoneState();
+            document.getElementById('staged-files-panel')?.classList.remove('hidden');
+            console.error(error);
+            showToast(error.message || 'Encryption failed. Please try again.', 'error');
+        }
+    }
+
+    async function uploadCollection(files) {
+        if (!files || files.length === 0 || uploadInProgress) return;
+
+        const totalFiles = files.length;
+        const totalBytes = files.reduce((acc, f) => acc + f.size, 0);
+        const csrfToken = getCSRFToken();
+        const progressPanel = document.getElementById('upload-progress');
+
+        uploadInProgress = true;
+        setDropzoneBusyState(`Collection: ${totalFiles} files`);
+        document.getElementById('staged-files-panel')?.classList.add('hidden');
+        progressPanel?.classList.remove('hidden');
+        resetUploadProgressUI();
+
+        setUploadStep('select');
+        updateUploadStage('Preparing collection upload...', 5);
+        await sleep(200);
+
+        let publicId = null;
+
+        try {
+            setUploadStep('encrypt');
+            updateUploadStage('Generating collection encryption key...', 10);
+
+            // Generate master encryption key for this collection
+            const key = await generateKey();
+            const exportedKey = await exportKey(key);
+
+            // Initialize collection on server
+            const initRes = await fetch('/api/v2/collection/init', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify({
+                    file_count: totalFiles,
+                    total_size: totalBytes
+                })
+            });
+
+            if (!initRes.ok) {
+                const errJson = await initRes.json().catch(() => ({}));
+                throw new Error(errJson.error || `Failed to initialize collection (${initRes.status})`);
             }
-        });
+
+            const initData = await initRes.json();
+            publicId = initData.public_id;
+
+            // Sequentially encrypt and upload each file (constant memory footprint!)
+            for (let i = 0; i < totalFiles; i++) {
+                const file = files[i];
+                const fileNum = i + 1;
+
+                // Encrypt step for this file
+                setUploadStep('encrypt');
+                const fileEncryptPct = Math.round((i / totalFiles) * 100);
+                updateUploadStage(`Encrypting (${fileNum}/${totalFiles}): ${file.name}...`, fileEncryptPct);
+                updateLinearProgress('encrypt-progress-bar', Math.round((fileNum / totalFiles) * 100));
+                updateProgressText('encrypt-percent', Math.round((fileNum / totalFiles) * 100));
+
+                // Encrypt using AES-256-GCM (fresh random IV per file!)
+                const encryptedBlob = await encryptFile(file, key);
+
+                // Upload step for this file
+                setUploadStep('upload');
+                const fileUploadPct = Math.round((i / totalFiles) * 100);
+                updateUploadStage(`Uploading (${fileNum}/${totalFiles}): ${file.name}...`, fileUploadPct);
+
+                const originalNameB64 = btoa(unescape(encodeURIComponent(file.name)));
+                const mimeType = file.type || 'application/octet-stream';
+
+                const formData = new FormData();
+                formData.append('file', encryptedBlob, file.name);
+
+                // Upload via XMLHttpRequest to capture individual file upload progress
+                await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', `/api/v2/collection/${publicId}/file`, true);
+                    xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+                    xhr.setRequestHeader('X-Original-Name', originalNameB64);
+                    xhr.setRequestHeader('X-Mime-Type', mimeType);
+
+                    xhr.upload.onprogress = (e) => {
+                        if (e.lengthComputable) {
+                            const fileRatio = e.loaded / e.total;
+                            const overallUploadPercent = Math.round(((i + fileRatio) / totalFiles) * 100);
+                            updateProgressText('upload-percent', overallUploadPercent);
+                            updateLinearProgress('upload-progress-bar', overallUploadPercent);
+                        }
+                    };
+
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve();
+                        } else {
+                            reject(new Error(`Failed to upload "${file.name}" (Status ${xhr.status})`));
+                        }
+                    };
+
+                    xhr.onerror = () => reject(new Error(`Network error while uploading "${file.name}"`));
+                    xhr.send(formData);
+                });
+            }
+
+            // Finalize collection on server
+            setUploadStep('link');
+            updateUploadStage('Finalizing secure collection link...', 95);
+
+            const finRes = await fetch(`/api/v2/collection/${publicId}/finalize`, {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': csrfToken }
+            });
+
+            if (!finRes.ok) {
+                const errJson = await finRes.json().catch(() => ({}));
+                throw new Error(errJson.error || 'Failed to finalize collection');
+            }
+
+            const finData = await finRes.json();
+            setUploadStep('link');
+            updateUploadStage('Collection created', 100);
+
+            // Append master key to URL fragment (zero-knowledge)
+            const collectionShareUrl = appendKeyToUrl(finData.public_url, exportedKey);
+            revealUploadSuccess(collectionShareUrl);
+
+            prependShareRow({
+                original_name: finData.share?.original_name || `Collection (${totalFiles} files)`,
+                public_url: collectionShareUrl,
+                upload_time: finData.share?.upload_time,
+                expiry_time: finData.share?.expiry_time
+            });
+
+            showToast('Secure collection created successfully');
+            clearStagedFiles();
+            restoreDropzoneState();
+            uploadInProgress = false;
+
+        } catch (err) {
+            console.error(err);
+            uploadInProgress = false;
+            restoreDropzoneState();
+            document.getElementById('staged-files-panel')?.classList.remove('hidden');
+
+            // Abort partial server collection if one was initialized
+            if (publicId) {
+                try {
+                    await fetch(`/api/v2/collection/${publicId}/abort`, {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': csrfToken }
+                    });
+                } catch (_) {}
+            }
+
+            showToast(err.message || 'Collection upload failed. Please try again.', 'error');
+        }
     }
 
     // --- Fragment Key Management ---
@@ -831,6 +1274,195 @@ const ObsidianSecure = (() => {
         document.getElementById('download-btn')?.addEventListener('click', decryptAndDownload);
     }
 
+    // --- Collection Recipient Decryption and ZIP Generation ---
+    function showCollectionError(message) {
+        const alert = document.getElementById('collection-error');
+        const text = document.getElementById('collection-error-text');
+        const retryBtn = document.getElementById('collection-retry-btn');
+        if (!alert || !text) return;
+
+        text.textContent = message;
+        alert.classList.remove('hidden');
+        if (retryBtn) retryBtn.classList.remove('hidden');
+    }
+
+    function hideCollectionError() {
+        const alert = document.getElementById('collection-error');
+        if (alert) alert.classList.add('hidden');
+    }
+
+    function sanitizeZipFilename(name) {
+        let clean = (name || 'file').replace(/^[a-zA-Z]:[/\\]+/, '').replace(/^[/\\]+/, '');
+        let parts = clean.split(/[/\\]+/).filter(p => p !== '' && p !== '.' && p !== '..');
+        let base = parts.pop() || 'file';
+        return base.replace(/[\x00-\x1f\x7f]/g, '').trim() || 'file';
+    }
+
+    function disambiguateFilename(name, existingSet) {
+        if (!existingSet.has(name)) {
+            existingSet.add(name);
+            return name;
+        }
+        const dotIdx = name.lastIndexOf('.');
+        const base = dotIdx !== -1 ? name.substring(0, dotIdx) : name;
+        const ext = dotIdx !== -1 ? name.substring(dotIdx) : '';
+        let count = 1;
+        while (existingSet.has(`${base} (${count})${ext}`)) {
+            count++;
+        }
+        const newName = `${base} (${count})${ext}`;
+        existingSet.add(newName);
+        return newName;
+    }
+
+    async function downloadAndDecryptCollection(event) {
+        if (event) event.preventDefault();
+        const button = document.getElementById('download-zip-btn');
+        if (!button || button.disabled) return;
+
+        hideCollectionError();
+        const publicId = button.dataset.publicId;
+        const originalHtml = button.innerHTML;
+
+        const keyB64 = getKeyFromFragment();
+        if (!keyB64) {
+            showCollectionError('The decryption key is missing from the URL (#key=...). Make sure you have the complete link.');
+            return;
+        }
+
+        button.disabled = true;
+        button.innerHTML = '<span class="material-symbols-outlined text-[20px] animate-gentle-pulse" aria-hidden="true">shield</span> Processing Collection...';
+
+        const progressPanel = document.getElementById('collection-progress');
+        const progressLabel = document.getElementById('collection-progress-label');
+        const progressPercent = document.getElementById('collection-progress-percent');
+        const progressBar = document.getElementById('collection-progress-bar');
+        const progressSub = document.getElementById('collection-progress-sub');
+
+        if (progressPanel) progressPanel.classList.remove('hidden');
+
+        function setColProgress(label, percent, sub = '') {
+            if (progressLabel) progressLabel.textContent = label;
+            if (progressPercent) progressPercent.textContent = `${Math.max(0, Math.min(100, percent))}%`;
+            if (progressBar) progressBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+            if (progressSub && sub) progressSub.textContent = sub;
+        }
+
+        try {
+            setColProgress('Importing encryption key...', 5, 'Client-side Web Crypto API');
+            const key = await importKey(keyB64);
+
+            setColProgress('Fetching collection manifest...', 10, 'Retrieving package inventory');
+            const manifestRes = await fetch(`/api/v2/collection/${publicId}/manifest`);
+            if (!manifestRes.ok) {
+                if (manifestRes.status === 410) {
+                    throw new Error('This collection has expired or has been revoked by the sender.');
+                }
+                throw new Error('Unable to retrieve collection manifest.');
+            }
+
+            const manifest = await manifestRes.json();
+            const files = manifest.files || [];
+            const downloadToken = manifest.download_token;
+            if (files.length === 0) {
+                throw new Error('Collection contains no files.');
+            }
+
+            if (typeof JSZip === 'undefined') {
+                throw new Error('ZIP archive library is not available.');
+            }
+
+            const zip = new JSZip();
+            const usedNames = new Set();
+            const totalFiles = files.length;
+
+            for (let i = 0; i < totalFiles; i++) {
+                const f = files[i];
+                const pct = 10 + Math.round((i / totalFiles) * 70);
+
+                setColProgress(
+                    `Downloading & decrypting (${i + 1}/${totalFiles}): ${f.original_name}`,
+                    pct,
+                    'AES-256-GCM verification'
+                );
+
+                const fileRes = await fetch(`/api/v2/collection/${publicId}/file/${f.file_id}`);
+                if (!fileRes.ok) {
+                    throw new Error(`Failed to download file "${f.original_name}" (Status ${fileRes.status})`);
+                }
+
+                const encryptedBlob = await fileRes.blob();
+
+                let plainBlob;
+                try {
+                    plainBlob = await decryptFileAuto(encryptedBlob, key, f.mime_type);
+                } catch (decErr) {
+                    throw new Error(`Integrity verification failed for "${f.original_name}". Authentication tag mismatch — key is invalid or data corrupted.`);
+                }
+
+                if (!plainBlob || plainBlob.size === 0) {
+                    throw new Error(`Decrypted file "${f.original_name}" is empty or corrupted.`);
+                }
+
+                // Sanitize and disambiguate filename to prevent path traversal
+                const safeName = sanitizeZipFilename(f.original_name);
+                const uniqueName = disambiguateFilename(safeName, usedNames);
+
+                const arrayBuffer = await plainBlob.arrayBuffer();
+                zip.file(uniqueName, arrayBuffer);
+            }
+
+            setColProgress('Compressing verified files into ZIP...', 85, 'Deflate compression');
+
+            const zipBlob = await zip.generateAsync({
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            }, (meta) => {
+                const zipPct = 85 + Math.round(meta.percent * 0.14);
+                setColProgress(`Building ZIP: ${Math.round(meta.percent)}%`, zipPct);
+            });
+
+            // Trigger browser download
+            const blobUrl = URL.createObjectURL(zipBlob);
+            const anchor = document.createElement('a');
+            anchor.href = blobUrl;
+            anchor.download = `collection_${publicId}.zip`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+
+            // Record download count on server using single-use acknowledgement token
+            if (downloadToken) {
+                try {
+                    await fetch(`/api/v2/collection/${publicId}/record_download`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: downloadToken })
+                    });
+                } catch (_) {}
+            }
+
+            setColProgress('Download complete!', 100, 'All files decrypted, verified, and packaged into ZIP');
+            button.innerHTML = '<span class="material-symbols-outlined text-[20px]" aria-hidden="true">check_circle</span> Download complete';
+
+        } catch (err) {
+            console.error(err);
+            if (progressPanel) progressPanel.classList.add('hidden');
+            showCollectionError(err.message || 'Failed to decrypt and generate ZIP archive.');
+            button.innerHTML = '<span class="material-symbols-outlined text-[20px]" aria-hidden="true">refresh</span> Retry Download';
+            button.disabled = false;
+        }
+    }
+
+    function initCollectionDownload() {
+        const btn = document.getElementById('download-zip-btn');
+        if (btn) btn.addEventListener('click', downloadAndDecryptCollection);
+        const retryBtn = document.getElementById('collection-retry-btn');
+        if (retryBtn) retryBtn.addEventListener('click', downloadAndDecryptCollection);
+    }
+
     // --- Message Decrypt ---
     function showDecryptError(message) {
         const alert = document.getElementById('decrypt-error');
@@ -845,34 +1477,54 @@ const ObsidianSecure = (() => {
         const button = document.getElementById('decrypt-btn');
         if (!button || button.disabled) return;
 
-        button.innerHTML = '<span class="material-symbols-outlined text-[20px] animate-gentle-pulse" aria-hidden="true">shield</span> Decrypting...';
+        button.innerHTML = '<span class="material-symbols-outlined text-[20px] animate-gentle-pulse" aria-hidden="true">shield</span> Retrieving &amp; Decrypting...';
         button.disabled = true;
 
         const keyB64 = getKeyFromFragment();
         if (!keyB64) {
             showDecryptError('The decryption key is missing from the URL. Make sure you have the complete link.');
-            button.innerHTML = '<span class="material-symbols-outlined text-[20px]" aria-hidden="true">lock_open</span> Decrypt Message';
+            button.innerHTML = '<span class="material-symbols-outlined text-[20px]" aria-hidden="true">lock_open</span> Decrypt &amp; Read Message';
             button.disabled = false;
             return;
         }
 
-        const encryptedB64 = document.getElementById('cipher-content')?.value;
-        if (!encryptedB64) {
-            showDecryptError('No encrypted content found on this page.');
-            button.innerHTML = '<span class="material-symbols-outlined text-[20px]" aria-hidden="true">lock_open</span> Decrypt Message';
-            button.disabled = false;
-            return;
-        }
+        const publicId = document.getElementById('cipher-public-id')?.value || window.location.pathname.split('/').pop();
+        const csrfToken = document.getElementById('cipher-csrf-token')?.value || getCSRFToken();
 
         try {
+            // Recipient-initiated atomic consumption: claims message and retrieves ciphertext in a single atomic transaction
+            const response = await fetch(`/api/cipher/consume/${publicId}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-Token': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.status === 410 || response.status === 409 || response.status === 404) {
+                // Message already burned, expired, or unavailable
+                document.getElementById('decrypt-prompt')?.classList.add('hidden');
+                document.getElementById('decryption-expired-state')?.classList.remove('hidden');
+                return;
+            }
+
+            if (!response.ok) {
+                showDecryptError('Unable to retrieve message from the server. Please try again.');
+                button.innerHTML = '<span class="material-symbols-outlined text-[20px]" aria-hidden="true">lock_open</span> Decrypt &amp; Read Message';
+                button.disabled = false;
+                return;
+            }
+
+            const data = await response.json();
+            const encryptedB64 = data.ciphertext;
+            if (!encryptedB64) {
+                document.getElementById('decrypt-prompt')?.classList.add('hidden');
+                document.getElementById('decryption-expired-state')?.classList.remove('hidden');
+                return;
+            }
+
             const key = await importKey(keyB64);
             const plaintext = await decryptText(encryptedB64, key);
-
-            // Mark as read on server after successful decryption
-            const publicId = window.location.pathname.split('/').pop();
-            try {
-                await fetch(`/api/cipher/confirm_read/${publicId}`, { method: 'POST' });
-            } catch (e) { console.error('Confirmation failed', e); }
 
             document.getElementById('decrypt-prompt')?.classList.add('hidden');
             const content = document.getElementById('decrypted-content');
@@ -882,9 +1534,10 @@ const ObsidianSecure = (() => {
             }
             const messageField = document.getElementById('plaintext-message');
             if (messageField) messageField.textContent = plaintext;
-        } catch (_) {
-            showDecryptError('Decryption failed. The link may be incomplete or the message may be corrupted.');
-            button.innerHTML = '<span class="material-symbols-outlined text-[20px]" aria-hidden="true">lock_open</span> Decrypt Message';
+        } catch (err) {
+            console.error('Decryption error:', err);
+            showDecryptError('Decryption failed. The key in your URL fragment may be incorrect or the payload corrupted.');
+            button.innerHTML = '<span class="material-symbols-outlined text-[20px]" aria-hidden="true">lock_open</span> Decrypt &amp; Read Message';
             button.disabled = false;
         }
     }
@@ -998,25 +1651,35 @@ const ObsidianSecure = (() => {
         if (!confirmDialog || !confirmCancel || !confirmOk) return;
 
         let currentPendingForm = null;
+        let lastOpenerElement = null;
 
         document.querySelectorAll('form.confirm-destructive').forEach(form => {
             form.addEventListener('submit', (e) => {
                 e.preventDefault();
                 currentPendingForm = form;
+                lastOpenerElement = document.activeElement;
                 confirmDialog.showModal();
+                // WCAG 3.3.4 & 2.4.7: Explicitly focus the safe Cancel action by default
+                setTimeout(() => confirmCancel.focus(), 50);
             });
         });
 
-        confirmCancel.addEventListener('click', () => {
+        const closeAndRestore = () => {
             currentPendingForm = null;
-            confirmDialog.close();
-        });
+            if (confirmDialog.open) confirmDialog.close();
+            if (lastOpenerElement && typeof lastOpenerElement.focus === 'function') {
+                lastOpenerElement.focus();
+            }
+        };
+
+        confirmCancel.addEventListener('click', closeAndRestore);
+        confirmDialog.addEventListener('cancel', closeAndRestore);
 
         confirmOk.addEventListener('click', () => {
             if (currentPendingForm) {
                 currentPendingForm.submit();
             }
-            confirmDialog.close();
+            if (confirmDialog.open) confirmDialog.close();
         });
     }
 
@@ -1250,6 +1913,7 @@ const ObsidianSecure = (() => {
         initUploadFlow();
         initCipherForm();
         initDecryptDownload();
+        initCollectionDownload();
         initCipherDecrypt();
         initFormProtection();
         initLandingParallax();

@@ -11,143 +11,183 @@
 
 {% block content %}
     {% if current_page == 'files' or not current_page %}
-    <div class="max-w-[1400px] w-full stagger-children flex flex-col">
+    <div class="max-w-[1400px] w-full flex flex-col">
+        <!-- Dashboard Header -->
         <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
             <div>
-                <h1 class="text-lg font-semibold text-ink-primary mb-1">Secure File Transfer</h1>
-                <p class="text-ink-secondary text-xs">Files are encrypted in your browser before leaving your device.</p>
+                <h1 class="text-xl font-semibold text-ink-primary mb-1">Secure File Transfer</h1>
+                <p class="text-xs text-ink-secondary">Files are encrypted in your browser using AES-256-GCM before leaving your device.</p>
             </div>
-            
-            <div class="flex flex-wrap items-center gap-3 text-[11px] text-ink-secondary select-none">
-                <a href="/active-shares" class="btn-secondary py-1.5 px-3 text-xs inline-flex items-center gap-1.5 mr-2">
+
+            <div class="flex flex-wrap items-center gap-2.5 text-xs text-ink-secondary select-none">
+                <a href="/active-shares" class="btn-secondary py-1.5 px-3 text-xs inline-flex items-center gap-1.5">
                     <span class="material-symbols-outlined text-[16px]" aria-hidden="true">folder_open</span>
                     <span>View Active Shares</span>
                 </a>
-                <div class="flex items-center gap-1.5 px-2.5 py-1 border border-archival-border bg-archival-soft rounded-md" title="Protected with AES-256-GCM in your browser before upload.">
-                    <span class="w-1 h-1 bg-sage rounded-full"></span>
-                    <span>Encrypted Locally</span>
-                </div>
-                <div class="flex items-center gap-1.5 px-2.5 py-1 border border-archival-border bg-archival-soft rounded-md" title="Up to 100 MB encrypted uploads are supported.">
-                    <span class="w-1 h-1 bg-sage rounded-full"></span>
-                    <span>Up to 100 MB Support</span>
-                </div>
-                <div class="flex items-center gap-1.5 px-2.5 py-1 border border-archival-border bg-archival-soft rounded-md" title="Links can expire automatically to reduce long-lived exposure.">
-                    <span class="w-1 h-1 bg-sage rounded-full"></span>
-                    <span>Automatic Expiry Available</span>
-                </div>
+                <span class="crypto-badge" title="Authenticated encryption standard with 256-bit keys">AES-256-GCM</span>
+                <span class="crypto-badge--muted font-mono" title="Maximum upload payload limit">50 MB Max</span>
+                <span class="crypto-badge--muted" title="Zero server custody: encryption keys never touch host storage">Zero-Knowledge</span>
             </div>
         </div>
-        
-        <div class="flex-1 pb-8 scrollable-ledger">
+
+        <div class="flex-1 pb-8">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-                <!-- Left Half: File dropzone & selections -->
-            <div class="order-2 lg:order-1">
-                <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="surface-card surface-card--primary">
-                        <div class="dropzone-area" id="dropzone" role="button" tabindex="0" aria-label="Select a file to encrypt and upload">
-                            <span class="material-symbols-outlined text-[36px] text-sage mb-3.5 block" aria-hidden="true">upload_file</span>
-                            <h3 class="text-sm font-semibold text-ink-primary mb-1.5">Choose a file to share</h3>
-                            <p class="text-xs text-ink-secondary">Click to browse or drag and drop — up to 100 MB</p>
-                        </div>
-                        <input type="file" name="file" id="file-upload" class="hidden" aria-label="Choose file" accept="*/*">
-
-                        <div id="upload-progress" class="hidden mt-4 pt-4 border-t border-archival-border" role="status" aria-live="polite">
-                            <div class="flex items-center justify-between gap-3 mb-3">
-                                <div>
-                                    <div class="text-xs text-ink-muted font-semibold">Upload Status</div>
-                                    <div id="upload-stage-label" class="text-sm font-semibold text-ink-primary mt-1">Preparing upload</div>
-                                </div>
-                                <div id="upload-stage-percent" class="text-sm font-semibold text-sage">0%</div>
+                <!-- Left Half: File dropzone & staged selections -->
+                <div class="order-2 lg:order-1">
+                    <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="surface-card surface-card--primary flex flex-col justify-between">
+                            <div class="dropzone-area" id="dropzone" role="button" tabindex="0" aria-label="Select files to encrypt and upload">
+                                <span class="material-symbols-outlined text-[36px] text-sage mb-3.5 block" aria-hidden="true">upload_file</span>
+                                <h3 class="text-sm font-semibold text-ink-primary mb-1.5">Choose files to share</h3>
+                                <p class="text-xs text-ink-secondary">Click to browse or drag and drop &bull; up to 10 files, 50 MB total</p>
                             </div>
+                            <input type="file" name="files" id="file-upload" class="hidden" multiple aria-label="Choose files" accept="*/*">
 
-                            <div class="upload-progress-shell mb-4" aria-hidden="true">
-                                <div id="upload-stage-bar" class="upload-progress-fill" style="width: 0%;"></div>
-                            </div>
-
-                            <div class="space-y-3 bg-archival-soft border border-archival-border p-3 rounded">
-                                <div class="upload-step" data-step="select">
-                                    <div class="step-dot" aria-hidden="true"></div>
-                                    <span class="text-xs text-ink-secondary">Selecting file...</span>
+                            <!-- Staged Files Queue Panel (Visible when files are selected) -->
+                            <div id="staged-files-panel" class="hidden mt-4 pt-4 border-t border-archival-border">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="text-xs font-semibold text-ink-primary flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[16px] text-sage" aria-hidden="true">folder_zip</span>
+                                        <span>Selected Files (<span id="staged-count" class="font-mono">0</span>/10)</span>
+                                    </div>
+                                    <div class="text-xs text-ink-secondary font-mono" id="staged-total-size">0 KB</div>
                                 </div>
-                                <div class="upload-step" data-step="encrypt">
-                                    <div class="step-dot" aria-hidden="true"></div>
-                                    <div class="upload-step-copy">
-                                        <div class="flex items-center justify-between gap-3">
-                                            <span class="text-xs text-ink-secondary">Encrypting in your browser</span>
-                                            <span id="encrypt-percent" class="text-[11px] text-ink-muted">0%</span>
-                                        </div>
-                                        <div class="upload-mini-bar"><div id="encrypt-progress-bar" class="upload-mini-fill" style="width: 0%;"></div></div>
+
+                                <div id="staged-validation-error" class="error-alert mb-3 text-xs hidden" role="alert"></div>
+
+                                <div id="staged-files-list" class="space-y-1.5 max-h-48 overflow-y-auto mb-3 bg-archival-soft border border-archival-border p-2 rounded">
+                                    <!-- Dynamically populated list of staged files -->
+                                </div>
+
+                                <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-archival-border/40">
+                                    <div class="flex items-center gap-2">
+                                        <button type="button" id="add-more-files-btn" class="btn-secondary py-1.5 px-3 text-xs inline-flex items-center gap-1">
+                                            <span class="material-symbols-outlined text-[14px]">add</span>
+                                            <span>Add More</span>
+                                        </button>
+                                        <button type="button" id="clear-staged-btn" class="btn-secondary py-1.5 px-2.5 text-xs text-ink-muted hover:text-destructive">
+                                            Clear
+                                        </button>
+                                    </div>
+                                    <div class="flex items-center gap-2" id="staged-action-buttons">
+                                        <button type="button" id="start-collection-upload-btn" class="btn-primary py-2 px-4 text-xs inline-flex items-center gap-1.5 font-medium">
+                                            <span class="material-symbols-outlined text-[16px]">lock</span>
+                                            <span id="start-collection-btn-label">Encrypt &amp; Share Collection (ZIP)</span>
+                                        </button>
                                     </div>
                                 </div>
-                                <div class="upload-step" data-step="upload">
-                                    <div class="step-dot" aria-hidden="true"></div>
-                                    <div class="upload-step-copy">
-                                        <div class="flex items-center justify-between gap-3">
-                                            <span class="text-xs text-ink-secondary">Uploading encrypted file</span>
-                                            <span id="upload-percent" class="text-[11px] text-ink-muted">0%</span>
+                            </div>
+
+                            <!-- Encryption & Upload Progress Panel -->
+                            <div id="upload-progress" class="hidden mt-4 pt-4 border-t border-archival-border" role="status" aria-live="polite">
+                                <div class="flex items-center justify-between gap-3 mb-3">
+                                    <div>
+                                        <div class="text-xs text-ink-muted font-semibold">Upload Status</div>
+                                        <div id="upload-stage-label" class="text-sm font-semibold text-ink-primary mt-1">Preparing upload</div>
+                                    </div>
+                                    <div id="upload-stage-percent" class="text-sm font-semibold text-sage font-mono">0%</div>
+                                </div>
+
+                                <div class="upload-progress-shell mb-4" aria-hidden="true">
+                                    <div id="upload-stage-bar" class="upload-progress-fill" style="width: 0%;"></div>
+                                </div>
+
+                                <div class="space-y-3 bg-archival-soft border border-archival-border p-3 rounded">
+                                    <div class="upload-step" data-step="select">
+                                        <div class="step-dot" aria-hidden="true"></div>
+                                        <span class="text-xs text-ink-secondary" id="step-select-label">Staging files...</span>
+                                    </div>
+                                    <div class="upload-step" data-step="encrypt">
+                                        <div class="step-dot" aria-hidden="true"></div>
+                                        <div class="upload-step-copy">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <span class="text-xs text-ink-secondary" id="step-encrypt-label">Encrypting in your browser</span>
+                                                <span id="encrypt-percent" class="text-[11px] text-ink-muted font-mono">0%</span>
+                                            </div>
+                                            <div class="upload-mini-bar"><div id="encrypt-progress-bar" class="upload-mini-fill" style="width: 0%;"></div></div>
                                         </div>
-                                        <div class="upload-mini-bar"><div id="upload-progress-bar" class="upload-mini-fill" style="width: 0%;"></div></div>
+                                    </div>
+                                    <div class="upload-step" data-step="upload">
+                                        <div class="step-dot" aria-hidden="true"></div>
+                                        <div class="upload-step-copy">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <span class="text-xs text-ink-secondary" id="step-upload-label">Uploading encrypted payload</span>
+                                                <span id="upload-percent" class="text-[11px] text-ink-muted font-mono">0%</span>
+                                            </div>
+                                            <div class="upload-mini-bar"><div id="upload-progress-bar" class="upload-mini-fill" style="width: 0%;"></div></div>
+                                        </div>
+                                    </div>
+                                    <div class="upload-step" data-step="link">
+                                        <div class="step-dot" aria-hidden="true"></div>
+                                        <span class="text-xs text-ink-secondary" id="step-link-label">Generating secure link...</span>
                                     </div>
                                 </div>
-                                <div class="upload-step" data-step="link">
-                                    <div class="step-dot" aria-hidden="true"></div>
-                                    <span class="text-xs text-ink-secondary">Generating share link...</span>
+                            </div>
+
+                            <div class="mt-5 flex items-center justify-center">
+                                <div class="trust-badge text-xs text-ink-muted flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[15px] text-sage" aria-hidden="true">lock</span>
+                                    <span>Payload ciphertext is sealed before transmission</span>
                                 </div>
                             </div>
                         </div>
-                        
-                        <div class="mt-5 flex items-center justify-center">
-                            <div class="trust-badge text-[11px] text-ink-secondary flex items-center gap-1.5">
-                                <span class="material-symbols-outlined text-[14px]" aria-hidden="true">verified_user</span>
-                                <span>Files are encrypted before leaving your browser</span>
+                    </form>
+                </div>
+
+                <!-- Right Half: Awaiting / Success Panel -->
+                <div id="qr-panel-container" class="order-1 lg:order-2">
+                    <!-- Success State: Generated Link Card -->
+                    <div id="success-panel" class="surface-card surface-card--primary hidden" role="status">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="material-symbols-outlined text-sage text-[20px]" aria-hidden="true">check_circle</span>
+                            <h4 class="text-sm font-semibold text-ink-primary font-sans">Share Created Successfully</h4>
+                        </div>
+
+                        <div class="share-link-bar mb-4">
+                            <input type="text" readonly value="{{ public_url if public_url else '' }}" id="share-url" data-share-type="upload"
+                                class="share-link-input text-xs font-mono" aria-label="Secure share link">
+                            <button type="button" id="copy-btn" data-copy-share="share-url" class="btn-primary py-2 px-4 text-xs shrink-0" aria-label="Copy link to clipboard">
+                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">content_copy</span>
+                                <span id="copy-label" data-copy-label>Copy link</span>
+                            </button>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row gap-5 items-start">
+                            <div id="qr-container" class="w-36 h-36 shrink-0 hidden flex items-center justify-center bg-white p-2 rounded"></div>
+                            <div class="text-xs text-ink-secondary space-y-2 pt-0.5">
+                                <p class="flex items-start gap-2">
+                                    <span class="material-symbols-outlined text-[15px] mt-0.5 text-sage shrink-0" aria-hidden="true">vpn_key</span>
+                                    <span>The decryption key is isolated in the URL hash fragment (<code class="text-sage font-mono text-[11px]">#key=...</code>). The host server never receives or logs this key.</span>
+                                </p>
+                                <p class="flex items-start gap-2">
+                                    <span class="material-symbols-outlined text-[15px] mt-0.5 text-sage shrink-0" aria-hidden="true">verified_user</span>
+                                    <span>Only people who receive the full link (including the fragment) can decrypt and open the payload.</span>
+                                </p>
                             </div>
                         </div>
                     </div>
-                </form>
-            </div>
 
-            <div id="qr-panel-container" class="order-1 lg:order-2">
-                <div id="success-panel" class="surface-card surface-card--primary animate-fade-in hidden" role="status">
-                    <div class="flex items-center gap-2 mb-4">
-                        <span class="material-symbols-outlined text-sage text-[18px]" aria-hidden="true">check_circle</span>
-                        <h4 class="text-sm font-semibold text-ink-primary font-sans">Share Created Successfully</h4>
-                    </div>
-
-                    <div class="share-link-bar mb-4">
-                        <input type="text" readonly value="{{ public_url if public_url else '' }}" id="share-url" data-share-type="upload"
-                            class="share-link-input text-xs" aria-label="Secure share link">
-                        <button type="button" id="copy-btn" data-copy-share="share-url" class="btn-primary py-2 px-4 text-xs shrink-0" aria-label="Copy link to clipboard">
-                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">content_copy</span>
-                            <span id="copy-label" data-copy-label>Copy link</span>
-                        </button>
-                    </div>
-
-                    <div class="flex flex-col sm:flex-row gap-5">
-                        <div id="qr-container" class="w-36 h-36 shrink-0 hidden flex items-center justify-center bg-white p-2 rounded"></div>
-                        <div class="text-[11px] text-ink-secondary space-y-2 pt-0.5">
-                            <p class="flex items-start gap-2">
-                                <span class="material-symbols-outlined text-[14px] mt-0.5 text-sage shrink-0" aria-hidden="true">lock</span>
-                                The decryption key is embedded in the URL hash fragment. Anyone with access to the link can read this file.
-                            </p>
-                            <p class="flex items-start gap-2">
-                                <span class="material-symbols-outlined text-[14px] mt-0.5 text-sage shrink-0" aria-hidden="true">visibility_off</span>
-                                The server never stores or logs the decryption key. It remains completely embedded inside the share link.
-                            </p>
+                    <!-- Idle State: Cryptographic Vault Receipt Placeholder -->
+                    <div id="awaiting-panel" class="surface-card surface-card--primary flex flex-col items-center justify-center text-center p-8 min-h-[360px] border border-dashed border-archival-border placeholder-payload-card select-none">
+                        <div class="w-14 h-14 rounded-lg bg-archival-soft border border-archival-border flex items-center justify-center mb-4 text-sage placeholder-lock-pulse">
+                            <span class="material-symbols-outlined text-[28px]" aria-hidden="true">lock</span>
+                        </div>
+                        <h4 class="text-sm font-semibold text-ink-primary mb-1.5">Awaiting Payload</h4>
+                        <p class="text-xs text-ink-secondary max-w-xs leading-relaxed mb-4">Choose one or more files on the left to initiate client-side encryption.</p>
+                        <div class="border-t border-archival-border/60 pt-3 max-w-xs text-left space-y-1.5">
+                            <div class="flex items-center gap-2 text-[11px] text-ink-muted">
+                                <span class="w-1.5 h-1.5 bg-sage rounded-full shrink-0"></span>
+                                <span>Keys generated in local browser memory</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-[11px] text-ink-muted">
+                                <span class="w-1.5 h-1.5 bg-sage rounded-full shrink-0"></span>
+                                <span>Zero-knowledge server key isolation</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-
-                <div id="awaiting-panel" class="surface-card surface-card--primary flex flex-col items-center justify-center text-center p-8 min-h-[300px] border border-dashed border-archival-border placeholder-payload-card select-none">
-                    <div class="w-16 h-16 rounded-full bg-archival-soft border border-archival-border flex items-center justify-center mb-5 text-sage placeholder-lock-pulse">
-                        <span class="material-symbols-outlined text-[32px]" aria-hidden="true">lock</span>
-                    </div>
-                    <h4 class="text-xs font-semibold text-ink-primary tracking-wide mb-2">Select a file to share</h4>
-                    <p class="text-xs text-ink-secondary max-w-[300px] leading-relaxed mb-2">Drop a file or click the choose button on the left to start sharing securely.</p>
-                    <p class="text-[10px] text-ink-muted max-w-[280px] leading-relaxed">Files are encrypted before leaving your browser. Access keys are stored only in your share links, never on our server.</p>
-                </div>
             </div>
-        </div>
         </div>
     </div>
 
@@ -158,16 +198,16 @@
                 <h1 class="text-lg font-semibold text-ink-primary mb-1">Secure Messages</h1>
                 <p class="text-ink-secondary text-xs">Create locally encrypted, self-destructing text messages.</p>
             </div>
-            
-            <div class="flex flex-wrap items-center gap-3 text-xs text-ink-secondary/70 select-none">
-                <div class="flex items-center gap-1.5 px-2.5 py-1 border border-archival-border bg-archival-soft rounded-md" title="Protected with AES-256-GCM in your browser before it reaches the server.">
+
+            <div class="flex flex-wrap items-center gap-2 text-xs text-ink-secondary select-none">
+                <span class="crypto-badge" title="Protected with AES-256-GCM in your browser before upload">
                     <span class="w-1.5 h-1.5 bg-sage rounded-full"></span>
-                    <span>Encrypted Locally</span>
-                </div>
-                <div class="flex items-center gap-1.5 px-2.5 py-1 border border-archival-border bg-archival-soft rounded-md">
-                    <span class="w-1.5 h-1.5 bg-sage rounded-full"></span>
-                    <span>Single-Read Option</span>
-                </div>
+                    <span>AES-256-GCM Local</span>
+                </span>
+                <span class="crypto-badge crypto-badge--warning">
+                    <span class="w-1.5 h-1.5 rounded-full" style="background-color: var(--warning);"></span>
+                    <span>Burn-On-Read</span>
+                </span>
             </div>
         </div>
 
@@ -175,11 +215,11 @@
             <form action="/cipher/create" method="POST" id="cipherForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" id="encrypted-message-input" name="content">
-                
+
                 <div class="surface-card surface-card--primary mb-6">
                     <label for="cipher-plaintext" class="form-label mb-2 text-xs">Message</label>
                     <textarea id="cipher-plaintext" placeholder="Type your message here..." class="form-input min-h-[160px] mb-4 resize-none text-sm p-3 font-sans" required aria-required="true"></textarea>
-                    
+
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-archival-border">
                         <label class="flex items-center gap-3 cursor-pointer group" for="burn-on-read">
                             <input type="checkbox" name="burn_on_read" id="burn-on-read" checked class="form-checkbox">
@@ -209,7 +249,7 @@
                         <span class="material-symbols-outlined text-sage text-[18px]" aria-hidden="true">check_circle</span>
                         <h4 class="text-xs font-semibold text-ink-primary font-sans">Message encrypted successfully</h4>
                     </div>
-    
+
                     <div class="share-link-bar mb-4">
                         <input type="text" readonly value="{{ public_url if public_url else '' }}" id="cipher-share-url" data-share-type="cipher"
                             class="share-link-input text-xs" aria-label="Encrypted message link">
@@ -218,7 +258,7 @@
                             <span id="cipher-copy-label" data-copy-label>Copy link</span>
                         </button>
                     </div>
-    
+
                     <div class="flex flex-col sm:flex-row gap-5">
                         <div id="cipher-qr-container" class="w-36 h-36 shrink-0 hidden flex items-center justify-center bg-white p-2 rounded"></div>
                         <div class="text-[11px] text-ink-secondary space-y-2">
@@ -319,10 +359,10 @@
                                 <span class="block text-xs font-semibold text-ink-primary mb-0.5 group-hover:text-sage transition-colors" id="label-{{ key }}">{{ label }}</span>
                                 <span class="block text-[11px] text-ink-secondary leading-relaxed">{{ desc }}</span>
                             </div>
-                            <button type="button" 
-                                class="protocol-switch w-10 h-5 rounded-full p-1 transition-all duration-200 {{ 'bg-sage' if settings[key] == 'true' else 'bg-ink-secondary/20' }}" 
+                            <button type="button"
+                                class="protocol-switch w-10 h-5 rounded-full p-1 transition-all duration-200 {{ 'bg-sage' if settings[key] == 'true' else 'bg-ink-secondary/20' }}"
                                 data-action="toggle-protocol" data-key="{{ key }}" data-state="{{ settings[key] }}"
-                                role="switch" aria-checked="{{ 'true' if settings[key] == 'true' else 'false' }}" 
+                                role="switch" aria-checked="{{ 'true' if settings[key] == 'true' else 'false' }}"
                                 aria-labelledby="label-{{ key }}">
                                 <div class="w-3 h-3 bg-white rounded-full transition-transform duration-200 {{ 'translate-x-5' if settings[key] == 'true' else 'translate-x-0' }} switch-knob" aria-hidden="true"></div>
                             </button>
@@ -339,7 +379,7 @@
                             <input type="text" id="alias-input" value="{{ settings.alias }}" class="form-input text-xs py-1.5" aria-describedby="alias-desc">
                             <button type="button" id="alias-save-btn" class="btn-secondary py-1.5 px-4 text-xs">Save</button>
                         </div>
-                        <p class="text-[10px] text-ink-secondary/60" id="alias-desc">This name appears on download pages so recipients know who shared the file with them.</p>
+                        <p class="text-xs text-ink-secondary" id="alias-desc">This name appears on download pages so recipients know who shared the file with them.</p>
                     </div>
                 </div>
 
@@ -410,11 +450,11 @@
 
             <div class="pt-4 border-t border-archival-border">
                 <h2 class="text-sm font-semibold text-ink-primary mb-3">Technology</h2>
-                <div class="flex flex-wrap gap-2 text-[11px] text-ink-secondary">
-                    <span class="px-3 py-1 rounded-full bg-archival-soft border border-archival-border">AES-256-GCM</span>
-                    <span class="px-3 py-1 rounded-full bg-archival-soft border border-archival-border">Web Crypto API</span>
-                    <span class="px-3 py-1 rounded-full bg-archival-soft border border-archival-border">Client-side encryption</span>
-                    <span class="px-3 py-1 rounded-full bg-archival-soft border border-archival-border">Zero-knowledge design</span>
+                <div class="flex flex-wrap gap-2 text-xs">
+                    <span class="crypto-badge">AES-256-GCM</span>
+                    <span class="crypto-badge">Web Crypto API</span>
+                    <span class="crypto-badge">Client-Side E2EE</span>
+                    <span class="crypto-badge">Zero-Knowledge Key Isolation</span>
                 </div>
             </div>
 

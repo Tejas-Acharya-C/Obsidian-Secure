@@ -60,3 +60,15 @@ implementation_plans/
 
 # Flask Instance folder
 instance/
+
+# Local persistent data directory
+data/
+
+# Temporary local backups, screenshots & lockfiles
+backups/
+screenshots/
+*.lock
+*_audit_results.json
+
+# Agent workspace configurations
+.agents/

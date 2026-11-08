@@ -11,7 +11,7 @@
             <h1 class="text-lg font-semibold text-ink-primary mb-1">Active Shares</h1>
             <p class="text-ink-secondary text-xs">Manage active secure file links, expiration status, access counts, and revocation.</p>
         </div>
-        
+
         <div class="flex items-center gap-3">
             <a href="/" class="btn-primary py-2 px-4 text-xs inline-flex items-center gap-2 self-start md:self-auto">
                 <span class="material-symbols-outlined text-[16px]" aria-hidden="true">add</span>
@@ -21,13 +21,18 @@
     </div>
 
     {% if shares %}
+    <!-- Screen Reader Status Announcer (WCAG 4.1.3) -->
+    <div id="shares-filter-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
     <!-- Search, Filter & Sort Controls Toolbar -->
     <div class="active-shares-toolbar">
         <!-- Search Input Container -->
         <div class="search-input-wrapper">
             <span class="material-symbols-outlined search-icon" aria-hidden="true">search</span>
-            <input type="text" id="share-search" placeholder="Search by filename or status..." 
-                aria-label="Search active shares by filename or status">
+            <input type="text" id="share-search" placeholder="Search by filename or status..."
+                aria-label="Search active shares by filename or status"
+                aria-controls="shares-table-body shares-cards-container"
+                aria-describedby="shares-filter-status">
         </div>
 
         <div class="flex flex-wrap items-center gap-3 justify-between md:justify-end">
@@ -72,15 +77,23 @@
                         {% for share in shares %}
                         {% set upload_iso = share.upload_time.isoformat() if share.upload_time else '' %}
                         {% set expiry_iso = share.expiry_time.isoformat() if share.expiry_time else '' %}
+                        {% set upload_epoch = (share.upload_time.timestamp() * 1000)|int if share.upload_time else 0 %}
+                        {% set expiry_epoch = (share.expiry_time.timestamp() * 1000)|int if share.expiry_time else 0 %}
                         <tr class="share-item-row group"
                             data-name="{{ share.original_name|lower }}"
                             data-upload="{{ upload_iso }}Z"
-                            data-expiry="{{ expiry_iso }}Z">
-                            
+                            data-expiry="{{ expiry_iso }}Z"
+                            data-upload-epoch="{{ upload_epoch }}"
+                            data-expiry-epoch="{{ expiry_epoch }}">
+
                             <!-- File / Payload Cell -->
                             <td class="col-file">
                                 <div class="flex items-center gap-2.5 min-w-0">
+                                    {% if share.is_collection %}
+                                    <span class="material-symbols-outlined text-[20px] text-sage shrink-0" aria-hidden="true">folder_zip</span>
+                                    {% else %}
                                     <span class="material-symbols-outlined text-[20px] text-sage shrink-0" aria-hidden="true">description</span>
+                                    {% endif %}
                                     <div class="min-w-0">
                                         <div class="share-filename-primary truncate title-cell" title="{{ share.original_name }}">
                                             {{ share.original_name }}
@@ -137,8 +150,8 @@
                                 <form action="/revoke" method="POST" class="inline confirm-destructive">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="public_url" value="{{ share.public_url }}">
-                                    <button type="submit" 
-                                        class="btn-destructive py-1 px-2.5 text-[11px] min-h-[30px] hover:bg-destructive/10 inline-flex items-center justify-center gap-1" 
+                                    <button type="submit"
+                                        class="btn-destructive py-1.5 px-3 text-[11px] min-h-[32px] hover:bg-destructive/10 inline-flex items-center justify-center gap-1"
                                         aria-label="Revoke access to {{ share.original_name }}">
                                         <span class="material-symbols-outlined text-[14px]" aria-hidden="true">delete</span>
                                         <span>Revoke</span>
@@ -156,14 +169,22 @@
                 {% for share in shares %}
                 {% set upload_iso = share.upload_time.isoformat() if share.upload_time else '' %}
                 {% set expiry_iso = share.expiry_time.isoformat() if share.expiry_time else '' %}
+                {% set upload_epoch = (share.upload_time.timestamp() * 1000)|int if share.upload_time else 0 %}
+                {% set expiry_epoch = (share.expiry_time.timestamp() * 1000)|int if share.expiry_time else 0 %}
                 <div class="share-item-card bg-archival-soft border border-archival-border rounded-lg p-4 space-y-3"
                     data-name="{{ share.original_name|lower }}"
                     data-upload="{{ upload_iso }}Z"
-                    data-expiry="{{ expiry_iso }}Z">
-                    
+                    data-expiry="{{ expiry_iso }}Z"
+                    data-upload-epoch="{{ upload_epoch }}"
+                    data-expiry-epoch="{{ expiry_epoch }}">
+
                     <div class="flex items-start justify-between gap-2">
                         <div class="flex items-center gap-2 min-w-0">
+                            {% if share.is_collection %}
+                            <span class="material-symbols-outlined text-[20px] text-sage shrink-0" aria-hidden="true">folder_zip</span>
+                            {% else %}
                             <span class="material-symbols-outlined text-[20px] text-sage shrink-0" aria-hidden="true">description</span>
+                            {% endif %}
                             <div class="min-w-0">
                                 <h4 class="text-xs font-semibold text-ink-primary truncate title-cell">{{ share.original_name }}</h4>
                                 <div class="text-[10px] text-ink-muted font-mono">{{ share.mime_type or 'encrypted file' }}</div>
@@ -208,8 +229,8 @@
                         <form action="/revoke" method="POST" class="w-full confirm-destructive">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="public_url" value="{{ share.public_url }}">
-                            <button type="submit" 
-                                class="btn-destructive w-full py-2 px-3 text-xs min-h-[44px] justify-center hover:bg-destructive/10 inline-flex items-center gap-1.5" 
+                            <button type="submit"
+                                class="btn-destructive w-full py-2 px-3 text-xs min-h-[44px] justify-center hover:bg-destructive/10 inline-flex items-center gap-1.5"
                                 aria-label="Revoke access to {{ share.original_name }}">
                                 <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
                                 <span>Revoke</span>
@@ -230,6 +251,24 @@
                     <span>Reset Filters</span>
                 </button>
             </div>
+
+            <!-- Pagination Controls (Accessible, visible when items exceed page size) -->
+            <nav id="shares-pagination-bar" class="hidden flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-archival-border bg-archival-soft/40 text-xs text-ink-secondary select-none" aria-label="Shares pagination">
+                <div id="pagination-summary" class="text-xs text-ink-secondary">
+                    Showing <span id="pagination-start" class="font-semibold text-ink-primary font-mono">1</span>–<span id="pagination-end" class="font-semibold text-ink-primary font-mono">25</span> of <span id="pagination-total" class="font-semibold text-ink-primary font-mono">0</span> shares
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="pagination-prev-btn" class="btn-secondary py-1 px-3 text-xs inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed" aria-label="Previous page">
+                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">chevron_left</span>
+                        <span>Previous</span>
+                    </button>
+                    <span id="pagination-page-indicator" class="text-xs text-ink-primary font-mono px-2" aria-current="page">Page 1 of 1</span>
+                    <button type="button" id="pagination-next-btn" class="btn-secondary py-1 px-3 text-xs inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed" aria-label="Next page">
+                        <span>Next</span>
+                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">chevron_right</span>
+                    </button>
+                </div>
+            </nav>
         </div>
     </div>
     {% else %}
@@ -255,137 +294,262 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const EXPIRING_SOON_MS = 15 * 60 * 1000; // 15 minutes threshold
+    const PAGE_SIZE = 25;
 
     const searchInput = document.getElementById('share-search');
     const filterBtns = document.querySelectorAll('.share-filter-btn');
     const sortSelect = document.getElementById('share-sort');
-    const rows = Array.from(document.querySelectorAll('.share-item-row'));
-    const cards = Array.from(document.querySelectorAll('.share-item-card'));
     const noResults = document.getElementById('no-filter-results');
     const resetBtn = document.getElementById('reset-filter-btn');
+    const statusAnnouncer = document.getElementById('shares-filter-status');
+
+    const paginationBar = document.getElementById('shares-pagination-bar');
+    const paginationStart = document.getElementById('pagination-start');
+    const paginationEnd = document.getElementById('pagination-end');
+    const paginationTotal = document.getElementById('pagination-total');
+    const paginationIndicator = document.getElementById('pagination-page-indicator');
+    const prevBtn = document.getElementById('pagination-prev-btn');
+    const nextBtn = document.getElementById('pagination-next-btn');
+
+    const tableBody = document.getElementById('shares-table-body');
+    const cardsContainer = document.getElementById('shares-cards-container');
 
     let currentFilter = 'all';
     let currentSearch = '';
+    let currentPage = 1;
+    let searchDebounceTimer = null;
 
-    function getShareStatus(expiryIso) {
-        if (!expiryIso) return 'active';
-        const expiryDate = new Date(expiryIso);
-        const now = new Date();
-        const diffMs = expiryDate.getTime() - now.getTime();
+    // Index all records once from DOM attributes
+    let shareRecords = [];
+
+    function calculateStatus(expiryEpoch, now = Date.now()) {
+        if (!expiryEpoch || expiryEpoch <= 0) return 'active';
+        const diffMs = expiryEpoch - now;
         if (diffMs <= 0) return 'expired';
         if (diffMs <= EXPIRING_SOON_MS) return 'expiring_soon';
         return 'active';
     }
 
-    function updateStatusBadges() {
-        const updateElement = (container, expiryIso) => {
-            const status = getShareStatus(expiryIso);
-            container.dataset.statusCalculated = status;
-            const badge = container.querySelector('.status-badge');
-            if (!badge) return;
-
-            if (status === 'expired') {
-                badge.className = 'status-badge inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-destructive/10 text-destructive border border-destructive/20';
-                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-destructive"></span><span>Expired</span>';
-            } else if (status === 'expiring_soon') {
-                badge.className = 'status-badge inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20';
-                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span>Expiring Soon</span>';
-            } else {
-                badge.className = 'status-badge inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-sage/10 text-sage border border-sage/20';
-                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-sage"></span><span>Active</span>';
-            }
-        };
-
-        rows.forEach(row => updateElement(row, row.dataset.expiry));
-        cards.forEach(card => updateElement(card, card.dataset.expiry));
+    function updateBadge(badgeElement, status) {
+        if (!badgeElement) return;
+        if (status === 'expired') {
+            badgeElement.className = 'status-badge inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-destructive/10 text-destructive border border-destructive/20';
+            badgeElement.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-destructive"></span><span>Expired</span>';
+        } else if (status === 'expiring_soon') {
+            badgeElement.className = 'status-badge inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20';
+            badgeElement.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span>Expiring Soon</span>';
+        } else {
+            badgeElement.className = 'status-badge inline-flex items-center justify-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-sage/10 text-sage border border-sage/20';
+            badgeElement.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-sage"></span><span>Active</span>';
+        }
     }
 
-    function filterAndSort() {
-        updateStatusBadges();
+    function indexDomElements() {
+        const rows = Array.from(document.querySelectorAll('.share-item-row'));
+        const cards = Array.from(document.querySelectorAll('.share-item-card'));
+        const now = Date.now();
+        shareRecords = [];
 
-        let visibleCount = 0;
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const card = cards[i] || null;
 
-        const applyToItem = (item) => {
-            const name = item.dataset.name || '';
-            const status = item.dataset.statusCalculated || 'active';
-            const matchesSearch = !currentSearch || name.includes(currentSearch) || status.includes(currentSearch);
-            
-            let matchesFilter = true;
-            if (currentFilter === 'active') matchesFilter = (status === 'active');
-            else if (currentFilter === 'expiring_soon') matchesFilter = (status === 'expiring_soon');
-            else if (currentFilter === 'expired') matchesFilter = (status === 'expired');
+            const uploadEpoch = parseInt(row.dataset.uploadEpoch, 10) || (row.dataset.upload ? new Date(row.dataset.upload).getTime() : 0);
+            const expiryEpoch = parseInt(row.dataset.expiryEpoch, 10) || (row.dataset.expiry ? new Date(row.dataset.expiry).getTime() : 0);
+            const status = calculateStatus(expiryEpoch, now);
 
-            const isVisible = matchesSearch && matchesFilter;
-            item.style.display = isVisible ? '' : 'none';
-            if (isVisible) visibleCount++;
-        };
+            updateBadge(row.querySelector('.status-badge'), status);
+            if (card) updateBadge(card.querySelector('.status-badge'), status);
 
-        rows.forEach(applyToItem);
-        cards.forEach(applyToItem);
+            shareRecords.push({
+                index: i,
+                name: (row.dataset.name || '').toLowerCase(),
+                uploadEpoch,
+                expiryEpoch,
+                status,
+                row,
+                card
+            });
+        }
+    }
 
-        if (noResults) {
-            noResults.style.display = (visibleCount === 0) ? 'block' : 'none';
+    function renderPage() {
+        const sortVal = sortSelect ? sortSelect.value : 'newest';
+
+        // 1. In-memory filter
+        const matched = shareRecords.filter(item => {
+            const matchesFilter = (currentFilter === 'all') || (item.status === currentFilter);
+            const matchesSearch = !currentSearch || item.name.includes(currentSearch) || item.status.includes(currentSearch);
+            return matchesFilter && matchesSearch;
+        });
+
+        // 2. In-memory stable sort using precomputed integer epochs
+        matched.sort((a, b) => {
+            let diff = 0;
+            if (sortVal === 'oldest') {
+                diff = a.uploadEpoch - b.uploadEpoch;
+            } else if (sortVal === 'expiring_soonest') {
+                const exA = a.expiryEpoch > 0 ? a.expiryEpoch : Infinity;
+                const exB = b.expiryEpoch > 0 ? b.expiryEpoch : Infinity;
+                diff = exA - exB;
+            } else {
+                diff = b.uploadEpoch - a.uploadEpoch;
+            }
+            return diff !== 0 ? diff : (a.index - b.index);
+        });
+
+        const totalMatched = matched.length;
+        const totalPages = Math.max(1, Math.ceil(totalMatched / PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIdx = (currentPage - 1) * PAGE_SIZE;
+        const endIdx = Math.min(startIdx + PAGE_SIZE, totalMatched);
+        const visibleSlice = matched.slice(startIdx, endIdx);
+        const visibleSet = new Set(visibleSlice);
+
+        // 3. Fast DOM visibility update
+        for (let i = 0; i < shareRecords.length; i++) {
+            const item = shareRecords[i];
+            const isVisible = visibleSet.has(item);
+            const displayVal = isVisible ? '' : 'none';
+            if (item.row.style.display !== displayVal) item.row.style.display = displayVal;
+            if (item.card && item.card.style.display !== displayVal) item.card.style.display = displayVal;
         }
 
-        // Sorting
-        const sortVal = sortSelect ? sortSelect.value : 'newest';
-        const sortItems = (container, selector) => {
-            if (!container) return;
-            const items = Array.from(container.querySelectorAll(selector));
-            items.sort((a, b) => {
-                const uploadA = new Date(a.dataset.upload || 0).getTime();
-                const uploadB = new Date(b.dataset.upload || 0).getTime();
-                const expiryA = new Date(a.dataset.expiry || 0).getTime();
-                const expiryB = new Date(b.dataset.expiry || 0).getTime();
-
-                if (sortVal === 'oldest') return uploadA - uploadB;
-                if (sortVal === 'expiring_soonest') return expiryA - expiryB;
-                return uploadB - uploadA; // newest
+        // Reorder visible DOM items on current page in single fragment paint
+        if (tableBody && visibleSlice.length > 0) {
+            const tableFrag = document.createDocumentFragment();
+            visibleSlice.forEach(item => tableFrag.appendChild(item.row));
+            tableBody.appendChild(tableFrag);
+        }
+        if (cardsContainer && visibleSlice.length > 0) {
+            const cardFrag = document.createDocumentFragment();
+            visibleSlice.forEach(item => {
+                if (item.card) cardFrag.appendChild(item.card);
             });
-            items.forEach(item => container.appendChild(item));
-        };
+            cardsContainer.appendChild(cardFrag);
+        }
 
-        const tableBody = document.getElementById('shares-table-body');
-        const cardsContainer = document.getElementById('shares-cards-container');
-        sortItems(tableBody, '.share-item-row');
-        sortItems(cardsContainer, '.share-item-card');
+        // 4. Update empty and no-results state
+        if (noResults) {
+            noResults.style.display = (totalMatched === 0) ? 'block' : 'none';
+        }
+
+        // 5. Update pagination UI
+        if (paginationBar) {
+            if (totalMatched > PAGE_SIZE) {
+                paginationBar.classList.remove('hidden');
+                if (paginationStart) paginationStart.textContent = totalMatched > 0 ? (startIdx + 1) : 0;
+                if (paginationEnd) paginationEnd.textContent = endIdx;
+                if (paginationTotal) paginationTotal.textContent = totalMatched;
+                if (paginationIndicator) paginationIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
+                if (prevBtn) prevBtn.disabled = (currentPage <= 1);
+                if (nextBtn) nextBtn.disabled = (currentPage >= totalPages);
+            } else {
+                paginationBar.classList.add('hidden');
+            }
+        }
+
+        // 6. Screen reader announcement
+        if (statusAnnouncer) {
+            if (totalMatched === 0) {
+                statusAnnouncer.textContent = 'No matching shares found.';
+            } else if (totalMatched <= PAGE_SIZE) {
+                statusAnnouncer.textContent = `Showing all ${totalMatched} shares.`;
+            } else {
+                statusAnnouncer.textContent = `Page ${currentPage} of ${totalPages}. Showing shares ${startIdx + 1} to ${endIdx} of ${totalMatched}.`;
+            }
+        }
     }
 
+    // Debounced search (220ms)
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
-            currentSearch = e.target.value.toLowerCase().trim();
-            filterAndSort();
+            const val = e.target.value.toLowerCase().trim();
+            if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => {
+                currentSearch = val;
+                currentPage = 1;
+                renderPage();
+            }, 220);
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+                currentSearch = searchInput.value.toLowerCase().trim();
+                currentPage = 1;
+                renderPage();
+            }
         });
     }
 
+    // Filter segment buttons
     filterBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            filterBtns.forEach(b => {
-                b.setAttribute('aria-selected', 'false');
-            });
+            filterBtns.forEach(b => b.setAttribute('aria-selected', 'false'));
             btn.setAttribute('aria-selected', 'true');
-            currentFilter = btn.dataset.filter;
-            filterAndSort();
+            currentFilter = btn.dataset.filter || 'all';
+            currentPage = 1;
+            renderPage();
         });
     });
 
+    // Sort select
     if (sortSelect) {
-        sortSelect.addEventListener('change', filterAndSort);
+        sortSelect.addEventListener('change', () => {
+            currentPage = 1;
+            renderPage();
+        });
     }
 
+    // Reset button
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
             if (searchInput) searchInput.value = '';
             currentSearch = '';
             currentFilter = 'all';
-            filterBtns.forEach((b, idx) => {
-                b.setAttribute('aria-selected', idx === 0 ? 'true' : 'false');
-            });
-            filterAndSort();
+            currentPage = 1;
+            filterBtns.forEach((b, idx) => b.setAttribute('aria-selected', idx === 0 ? 'true' : 'false'));
+            renderPage();
         });
     }
 
-    filterAndSort();
+    // Pagination buttons
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderPage();
+            }
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            const totalMatched = shareRecords.filter(item => {
+                const matchesFilter = (currentFilter === 'all') || (item.status === currentFilter);
+                const matchesSearch = !currentSearch || item.name.includes(currentSearch);
+                return matchesFilter && matchesSearch;
+            }).length;
+            const totalPages = Math.ceil(totalMatched / PAGE_SIZE);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderPage();
+            }
+        });
+    }
+
+    // Listen for dynamically created shares (e.g. from dashboard)
+    window.addEventListener('obsidian:share-created', () => {
+        indexDomElements();
+        currentPage = 1;
+        renderPage();
+    });
+
+    // Initial indexing & render
+    indexDomElements();
+    renderPage();
 });
 </script>
 {% endif %}
